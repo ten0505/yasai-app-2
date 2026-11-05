@@ -164,6 +164,8 @@ h3{font-size:13px;color:var(--primary-d)}
 .act-check-label:hover{border-color:var(--primary);background:#f0f8f0}
 .act-check-label.checked{background:var(--primary);color:#fff;border-color:var(--primary-d)}
 .act-check-label input[type=checkbox]{display:none}
+.chip-mini{gap:4px}
+.chip-mini .act-check-label{padding:3px 9px;font-size:11px;border-radius:13px}
 .form-actions{display:flex;gap:8px;margin-top:14px;padding-top:10px;border-top:1px solid var(--border)}
 .photo-item{position:relative;width:72px;height:72px;flex:0 0 auto}
 .photo-item img{width:72px;height:72px;object-fit:cover;border-radius:4px;display:block}
@@ -428,7 +430,13 @@ function _localDateStr(d){
 function fmtMD(ds){const p=ds.split('-');return `${+p[1]}/${+p[2]}`;}
 function getVeg(id){return D.vegetables.find(v=>v.id===id);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function workAct(w){return w.act==='自由入力'?(w.custom||'自由入力'):w.act;}
+// 作業エントリの作業名配列（自由入力はその内容に置換）とまとめ表示用ラベル
+function workActs(w){
+  const acts=Array.isArray(w.acts)&&w.acts.length?w.acts:(w.act?[w.act]:[]);
+  return acts.map(a=>a==='自由入力'?(w.custom||'自由入力'):a);
+}
+function workActLabel(w){return workActs(w).join('・');}
+function workVids(w){return Array.isArray(w.vids)&&w.vids.length?w.vids:(w.vid?[w.vid]:[]);}
 function actColor(act){
   if(!act)return'#6b7280';
   if(/収穫/.test(act))return'#dc2626';
@@ -476,8 +484,15 @@ function _normalizeVeg(v){
 }
 function _normalizeDay(d){
   if(!Array.isArray(d.fieldActs))d.fieldActs=[];
+  if(!Array.isArray(d.fieldPhotos))d.fieldPhotos=[];
   if(!Array.isArray(d.works))d.works=[];
-  d.works.forEach(w=>{if(!Array.isArray(w.photos))w.photos=w.photo?[w.photo]:[];});
+  d.works.forEach(w=>{
+    if(!Array.isArray(w.photos))w.photos=w.photo?[w.photo]:[];
+    // 旧形式(単一選択 vid/act)→新形式(複数選択 vids/acts)へ変換
+    if(!Array.isArray(w.vids))w.vids=w.vid?[w.vid]:[];
+    if(!Array.isArray(w.acts))w.acts=w.act?[w.act]:[];
+    delete w.vid;delete w.act;
+  });
   return d;
 }
 // シード作物の追加マイグレーション（アプリ更新で作物が増えた時、既存データにも1回だけ追加する）
@@ -493,7 +508,11 @@ function _dataWithoutPhotos(){
   return {
     seedVer:D.seedVer||1,
     vegetables:D.vegetables,
-    days:D.days.map(dd=>Object.assign({},dd,{works:(dd.works||[]).map(w=>{const c=Object.assign({},w);delete c.photos;delete c.photo;return c;})})),
+    days:D.days.map(dd=>{
+      const c=Object.assign({},dd,{works:(dd.works||[]).map(w=>{const cw=Object.assign({},w);delete cw.photos;delete cw.photo;return cw;})});
+      delete c.fieldPhotos;
+      return c;
+    }),
     plans:D.plans,
     harvests:D.harvests
   };
@@ -574,13 +593,19 @@ function _loadSDK(cb){
 }
 function _collectLocalPhotos(){
   const m={};
-  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{if(w.photos&&w.photos.length)m[w.id]=w.photos;}));
+  D.days.forEach(dd=>{
+    if(dd.fieldPhotos&&dd.fieldPhotos.length)m[dd.id]=dd.fieldPhotos; // 畑全体の写真は日次記録idで保存
+    (dd.works||[]).forEach(w=>{if(w.photos&&w.photos.length)m[w.id]=w.photos;});
+  });
   return m;
 }
 function _mergePhotos(photosObj){
-  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
-    if(photosObj[w.id])w.photos=photosObj[w.id];
-  }));
+  D.days.forEach(dd=>{
+    if(photosObj[dd.id])dd.fieldPhotos=photosObj[dd.id];
+    (dd.works||[]).forEach(w=>{
+      if(photosObj[w.id])w.photos=photosObj[w.id];
+    });
+  });
 }
 function initFirebase(config){
   FB_ERROR=null;clearTimeout(FB_TIMEOUT);updateSyncBadge('connecting');
@@ -619,10 +644,13 @@ function initFirebase(config){
             const migrated=(D.seedVer||1)<SEED_VER;
             _migrateSeedVegs();
             _mergePhotos(photosObj);
-            // Firebase未到達のローカル写真を復元
-            D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
-              if((!w.photos||!w.photos.length)&&localPhotos[w.id])w.photos=localPhotos[w.id];
-            }));
+            // Firebase未到達のローカル写真を復元（作物ごと＋畑全体）
+            D.days.forEach(dd=>{
+              if((!dd.fieldPhotos||!dd.fieldPhotos.length)&&localPhotos[dd.id])dd.fieldPhotos=localPhotos[dd.id];
+              (dd.works||[]).forEach(w=>{
+                if((!w.photos||!w.photos.length)&&localPhotos[w.id])w.photos=localPhotos[w.id];
+              });
+            });
             Object.keys(photosObj).forEach(id=>_syncedPhotoIds.add(id));
             _saveLocal();
             if(hadLocalOnly||migrated||_saveQueuedForConnect){_saveQueuedForConnect=false;setTimeout(()=>saveToCloud(),500);}
@@ -753,8 +781,8 @@ function renderTimeline(main){
   const dayByDate={};D.days.forEach(dd=>{(dayByDate[dd.date]=dayByDate[dd.date]||[]).push(dd);});
   const worksBy={},fieldBy={};
   D.days.forEach(dd=>{
-    if((dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom)(fieldBy[dd.date]=fieldBy[dd.date]||[]).push(dd);
-    (dd.works||[]).forEach(w=>{(worksBy[dd.date+'_'+w.vid]=worksBy[dd.date+'_'+w.vid]||[]).push(w);});
+    if((dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom||(dd.fieldPhotos&&dd.fieldPhotos.length))(fieldBy[dd.date]=fieldBy[dd.date]||[]).push(dd);
+    (dd.works||[]).forEach(w=>workVids(w).forEach(vid=>{(worksBy[dd.date+'_'+vid]=worksBy[dd.date+'_'+vid]||[]).push(w);}));
   });
   const plansBy={};D.plans.forEach(p=>{(plansBy[p.date+'_'+p.vid]=plansBy[p.date+'_'+p.vid]||[]).push(p);});
   const harvBy={};D.harvests.forEach(h=>{(harvBy[h.date+'_'+h.vid]=harvBy[h.date+'_'+h.vid]||[]).push(h);});
@@ -790,8 +818,8 @@ function renderTimeline(main){
       const ps=plansBy[ds+'_'+v.id]||[];
       const hs=harvBy[ds+'_'+v.id]||[];
       const dots=[
-        ...ws.slice(0,3).map(w=>`<span class="tl-dot" style="background:${actColor(workAct(w))}"></span>`),
-        ...(hs.length&&!ws.some(w=>/収穫/.test(workAct(w)))?['<span class="tl-dot" style="background:#dc2626"></span>']:[]),
+        ...ws.flatMap(w=>workActs(w)).slice(0,3).map(a=>`<span class="tl-dot" style="background:${actColor(a)}"></span>`),
+        ...(hs.length&&!ws.some(w=>workActs(w).some(a=>/収穫/.test(a)))?['<span class="tl-dot" style="background:#dc2626"></span>']:[]),
         ...ps.slice(0,2).map(()=>'<span class="tl-dot plan"></span>')
       ].join('');
       return `<td class="tl-cell ${ds===today?'today':''} ${dots?'has-data':''}" onclick="openDayPopup('${ds}','${v.id}')">${dots}</td>`;
@@ -815,7 +843,7 @@ function openDayPopup(ds,vid){
   const harvests=D.harvests.filter(h=>h.date===ds&&(!vid||h.vid===vid));
   let body='';
   days.forEach(dd=>{
-    const works=(dd.works||[]).filter(w=>!vid||w.vid===vid);
+    const works=(dd.works||[]).filter(w=>!vid||workVids(w).includes(vid));
     const env=[dd.weather,dd.wind,dd.temp].filter(Boolean).join(' / ');
     body+=`<div class="popup-entry">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -825,11 +853,14 @@ function openDayPopup(ds,vid){
           <button class="btn-sm" style="background:#dc2626" onclick="deleteDay('${dd.id}')">削除</button>
         </span>
       </div>
-      ${(dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom?`<div style="margin-top:4px">🏞 畑全体: ${esc([...(dd.fieldActs||[]),dd.fieldCustom].filter(Boolean).join('・'))}</div>`:''}
+      ${(dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom||(dd.fieldPhotos&&dd.fieldPhotos.length)?`<div style="margin-top:4px">🏞 畑全体: ${esc([...(dd.fieldActs||[]),dd.fieldCustom].filter(Boolean).join('・'))}
+        ${dd.fieldPhotos&&dd.fieldPhotos.length?`<div class="photo-thumbs">${dd.fieldPhotos.map((p,i)=>`<img class="photo-thumb" src="${p}" onclick="openLightbox('${dd.id}',${i})">`).join('')}</div>`:''}
+      </div>`:''}
       ${works.map(w=>{
-        const v=getVeg(w.vid);
+        const vegs=workVids(w).map(id=>{const v=getVeg(id);return v?v.emoji+esc(v.name):'?';}).join('、');
+        const actsHtml=workActs(w).map(a=>`<b style="color:${actColor(a)}">${esc(a)}</b>`).join('・');
         return `<div style="margin-top:4px">
-          ${v?v.emoji+esc(v.name):'?'} <b style="color:${actColor(workAct(w))}">${esc(workAct(w))}</b>
+          ${vegs||'?'} ${actsHtml}
           ${w.memo?`<span style="color:var(--muted);font-size:11px"> ${esc(w.memo)}</span>`:''}
           ${w.photos&&w.photos.length?`<div class="photo-thumbs">${w.photos.map((p,i)=>`<img class="photo-thumb" src="${p}" onclick="openLightbox('${w.id}',${i})">`).join('')}</div>`:''}
         </div>`;
@@ -869,7 +900,10 @@ document.getElementById('popup').addEventListener('click',e=>{if(e.target.id==='
 let _lb={photos:[],idx:0};
 function openLightbox(workId,idx){
   let photos=null;
-  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{if(w.id===workId)photos=w.photos;}));
+  D.days.forEach(dd=>{
+    if(dd.id===workId&&dd.fieldPhotos&&dd.fieldPhotos.length)photos=dd.fieldPhotos;
+    (dd.works||[]).forEach(w=>{if(w.id===workId)photos=w.photos;});
+  });
   if(!photos||!photos.length)return;
   _lb={photos,idx:idx||0};
   _lbShow();
@@ -944,7 +978,7 @@ function renderSchedTab(v){
   // 実施（日次記録から抽出）＋予定＋収穫
   const items=[];
   D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
-    if(w.vid===v.id)items.push({type:'work',date:dd.date,day:dd,w});
+    if(workVids(w).includes(v.id))items.push({type:'work',date:dd.date,day:dd,w});
   }));
   D.plans.forEach(p=>{if(p.vid===v.id)items.push({type:'plan',date:p.date,p});});
   D.harvests.forEach(h=>{if(h.vid===v.id)items.push({type:'harvest',date:h.date,h});});
@@ -957,7 +991,7 @@ function renderSchedTab(v){
       return `<div class="sched-item">
         <div class="left"><div class="date">${fmtMD(it.date)}</div><div class="time">${dd.timeFrom||''}${dd.timeFrom||dd.timeTo?'〜':''}${dd.timeTo||''}</div></div>
         <div class="right">
-          <div class="act" style="color:${actColor(workAct(w))}">${esc(workAct(w))} <span class="badge badge-actual">実施</span></div>
+          <div class="act">${workActs(w).map(a=>`<span style="color:${actColor(a)}">${esc(a)}</span>`).join('・')} <span class="badge badge-actual">実施</span></div>
           ${env?`<div class="memo">🌤 ${esc(env)}</div>`:''}
           ${w.memo?`<div class="memo">${esc(w.memo)}</div>`:''}
           ${w.photos&&w.photos.length?`<div class="photo-thumbs">${w.photos.map((p,i)=>`<img class="photo-thumb" src="${p}" onclick="openLightbox('${w.id}',${i})">`).join('')}</div>`:''}
@@ -1003,11 +1037,12 @@ function renderHarvestTab(v){
 }
 
 // ---------- 統一入力フォーム ----------
+function _emptyWorkRow(){return {id:newId('w'),vids:[],acts:[],custom:'',memo:'',photos:[]};}
 function newEntry(){newEntryFor(_localDateStr(new Date()));}
 function newEntryFor(ds){
   E={id:null,date:ds,timeFrom:'',timeTo:'',weather:'',wind:'',temp:'',
-     fieldActs:[],fieldCustom:'',
-     works:[{id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]}],
+     fieldActs:[],fieldCustom:'',fieldPhotos:[],
+     works:[_emptyWorkRow()],
      plans:[],harvests:[]};
 }
 function editEntry(dayId){
@@ -1016,17 +1051,18 @@ function editEntry(dayId){
   closePopup();
   E={id:dd.id,date:dd.date,timeFrom:dd.timeFrom||'',timeTo:dd.timeTo||'',
      weather:dd.weather||'',wind:dd.wind||'',temp:dd.temp||'',
-     fieldActs:[...(dd.fieldActs||[])],fieldCustom:dd.fieldCustom||'',
-     works:(dd.works||[]).map(w=>({id:w.id,vid:w.vid,act:w.act,custom:w.custom||'',memo:w.memo||'',photos:[...(w.photos||[])]})),
+     fieldActs:[...(dd.fieldActs||[])],fieldCustom:dd.fieldCustom||'',fieldPhotos:[...(dd.fieldPhotos||[])],
+     works:(dd.works||[]).map(w=>({id:w.id,vids:[...workVids(w)],acts:[...(w.acts||[])],custom:w.custom||'',memo:w.memo||'',photos:[...(w.photos||[])]})),
      plans:D.plans.filter(p=>p.src===dd.id).map(p=>({date:p.date,vid:p.vid,act:p.act,custom:p.custom||''})),
      harvests:D.harvests.filter(h=>h.src===dd.id).map(h=>({vid:h.vid,variety:h.variety||'',count:h.count}))};
-  if(!E.works.length)E.works.push({id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]});
+  if(!E.works.length)E.works.push(_emptyWorkRow());
   setView('entry');
 }
 function deleteDay(dayId){
   const dd=D.days.find(x=>x.id===dayId);
   if(!dd)return;
   if(!confirm(dd.date+' の記録を削除しますか？（この日の予定・収穫記録も削除されます）'))return;
+  if(dd.fieldPhotos&&dd.fieldPhotos.length){_pendingPhotoDeletes.add(dd.id);_syncedPhotoIds.delete(dd.id);}
   (dd.works||[]).forEach(w=>{if(w.photos&&w.photos.length){_pendingPhotoDeletes.add(w.id);_syncedPhotoIds.delete(w.id);}});
   D.days=D.days.filter(x=>x.id!==dayId);
   D.plans=D.plans.filter(p=>p.src!==dayId);
@@ -1083,9 +1119,13 @@ function renderEntry(main){
           <input type="checkbox" ${E.fieldActs.includes(a)?'checked':''} onchange="toggleFieldAct('${a}',this.checked)">${a}</label>`).join('')}
       </div>
       <input style="margin-top:6px" placeholder="自由入力（その他の畑全体作業）" value="${esc(E.fieldCustom)}" onchange="E.fieldCustom=this.value">
-      <label style="margin-top:12px">実施作業２：作物ごとの作業（最大20行・写真付き）</label>
+      <div class="photo-thumbs">
+        ${(E.fieldPhotos||[]).map((p,pi)=>`<div class="photo-item"><img src="${p}"><button class="photo-del" onclick="removeFieldPhoto(${pi})">✕</button></div>`).join('')}
+      </div>
+      <button class="photo-add-btn" onclick="pickFieldPhoto()" ${(E.fieldPhotos||[]).length>=4?'disabled':''}>📷 写真を追加（${(E.fieldPhotos||[]).length}/4）</button>
+      <label style="margin-top:12px">実施作業２：作物への作業（作物・作業とも複数選択可・写真付き）</label>
       <div id="work-rows">${E.works.map((w,i)=>workRowHtml(w,i)).join('')}</div>
-      <button class="photo-add-btn" onclick="addWorkRow()" ${E.works.length>=20?'disabled':''}>＋ 作物の作業を追加（${E.works.length}/20）</button>
+      <button class="photo-add-btn" onclick="addWorkRow()" ${E.works.length>=30?'disabled':''}>＋ 作物への作業を追加（${E.works.length}/30）</button>
     </div>
 
     <div class="entry-section">
@@ -1120,12 +1160,20 @@ function renderEntry(main){
 }
 function workRowHtml(w,i){
   return `<div class="work-row">
-    <div class="work-row-head">
-      <div class="fi"><label>作物名</label><select onchange="E.works[${i}].vid=this.value">${vegOptions(w.vid)}</select></div>
-      <div class="fi"><label>作業</label><select onchange="E.works[${i}].act=this.value;renderEntryKeep()">${actOptions(w.act)}</select></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <label style="margin-top:0">【${i+1}】作物名（複数選択可）</label>
       <button class="row-del" title="この行を削除" onclick="removeWorkRow(${i})">🗑</button>
     </div>
-    ${w.act==='自由入力'?`<input style="margin-top:6px" placeholder="作業内容を入力" value="${esc(w.custom)}" onchange="E.works[${i}].custom=this.value">`:''}
+    <div class="act-check-grid chip-mini">
+      ${D.vegetables.map(v=>`<label class="act-check-label ${w.vids.includes(v.id)?'checked':''}">
+        <input type="checkbox" ${w.vids.includes(v.id)?'checked':''} onchange="toggleWorkVid(${i},'${v.id}',this.checked)">${v.emoji}${esc(v.name)}</label>`).join('')}
+    </div>
+    <label>作業（複数選択可）</label>
+    <div class="act-check-grid chip-mini">
+      ${OPT_C.map(a=>`<label class="act-check-label ${w.acts.includes(a)?'checked':''}">
+        <input type="checkbox" ${w.acts.includes(a)?'checked':''} onchange="toggleWorkAct(${i},'${a}',this.checked)">${a}</label>`).join('')}
+    </div>
+    ${w.acts.includes('自由入力')?`<input style="margin-top:6px" placeholder="作業内容を入力" value="${esc(w.custom)}" onchange="E.works[${i}].custom=this.value">`:''}
     <input style="margin-top:6px" placeholder="メモ（任意）" value="${esc(w.memo)}" onchange="E.works[${i}].memo=this.value">
     <div class="photo-thumbs">
       ${(w.photos||[]).map((p,pi)=>`<div class="photo-item"><img src="${p}"><button class="photo-del" onclick="removeWorkPhoto(${i},${pi})">✕</button></div>`).join('')}
@@ -1133,6 +1181,34 @@ function workRowHtml(w,i){
     <button class="photo-add-btn" onclick="pickWorkPhoto(${i})" ${(w.photos||[]).length>=4?'disabled':''}>📷 写真を追加（${(w.photos||[]).length}/4）</button>
   </div>`;
 }
+function toggleWorkVid(i,vid,on){
+  const a=E.works[i].vids;
+  if(on){if(!a.includes(vid))a.push(vid);}
+  else E.works[i].vids=a.filter(x=>x!==vid);
+  renderEntryKeep();
+}
+function toggleWorkAct(i,act,on){
+  const a=E.works[i].acts;
+  if(on){if(!a.includes(act))a.push(act);}
+  else E.works[i].acts=a.filter(x=>x!==act);
+  renderEntryKeep();
+}
+function pickFieldPhoto(){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=()=>{
+    const files=[...inp.files].slice(0,4-(E.fieldPhotos||[]).length);
+    let remain=files.length;
+    if(!remain)return;
+    toast('写真を圧縮中…');
+    files.forEach(f=>_compressImage(f,b64=>{
+      if(b64)E.fieldPhotos.push(b64);
+      if(--remain===0)renderEntryKeep();
+    }));
+  };
+  inp.click();
+}
+function removeFieldPhoto(pi){E.fieldPhotos.splice(pi,1);renderEntryKeep();}
 function planRowHtml(p,i){
   return `<div class="work-row"><div class="work-row-head">
     <div class="fi"><label>日付</label><input type="date" value="${p.date||''}" onchange="E.plans[${i}].date=this.value"></div>
@@ -1156,22 +1232,27 @@ function harvestRowHtml(h,i){
   ${selVal==='__free__'?`<input style="margin-top:6px" placeholder="品種名を入力" value="${esc(h.varietyFree||'')}" onchange="E.harvests[${i}].varietyFree=this.value">`:''}
   </div>`;
 }
-function renderEntryKeep(){renderEntry(document.getElementById('main'));}
+function renderEntryKeep(){
+  const main=document.getElementById('main');
+  const st=main.scrollTop;
+  renderEntry(main);
+  main.scrollTop=st;
+}
 function toggleFieldAct(a,on){
   if(on){if(!E.fieldActs.includes(a))E.fieldActs.push(a);}
   else E.fieldActs=E.fieldActs.filter(x=>x!==a);
   renderEntryKeep();
 }
 function addWorkRow(){
-  if(E.works.length>=20)return;
-  E.works.push({id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]});
+  if(E.works.length>=30)return;
+  E.works.push(_emptyWorkRow());
   renderEntryKeep();
 }
 function removeWorkRow(i){
   const w=E.works[i];
   if(w&&(w.photos||[]).length&&!confirm('写真付きの行です。削除しますか？'))return;
   E.works.splice(i,1);
-  if(!E.works.length)E.works.push({id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]});
+  if(!E.works.length)E.works.push(_emptyWorkRow());
   renderEntryKeep();
 }
 function removeWorkPhoto(i,pi){E.works[i].photos.splice(pi,1);renderEntryKeep();}
@@ -1209,26 +1290,29 @@ async function fetchWeatherBtn(){
 }
 function saveEntry(){
   if(!E.date){toast('日付を入力してください');return;}
-  const works=E.works.filter(w=>w.vid&&(w.act||w.custom||(w.photos||[]).length));
+  const works=E.works.filter(w=>w.vids.length&&(w.acts.length||(w.custom||'').trim()||(w.photos||[]).length));
   const plans=E.plans.filter(p=>p.date&&p.vid&&p.act);
   const harvests=E.harvests.filter(h=>h.vid&&(+h.count>0));
-  const hasField=E.fieldActs.length||E.fieldCustom.trim();
+  const hasField=E.fieldActs.length||E.fieldCustom.trim()||(E.fieldPhotos||[]).length;
   const hasEnv=E.weather||E.wind||E.temp||E.timeFrom||E.timeTo;
   if(!works.length&&!plans.length&&!harvests.length&&!hasField&&!hasEnv){toast('入力内容がありません');return;}
   let dayId=E.id;
   const dayObj={
     id:dayId||newId('d'),date:E.date,timeFrom:E.timeFrom,timeTo:E.timeTo,
     weather:E.weather,wind:E.wind,temp:E.temp,
-    fieldActs:[...E.fieldActs],fieldCustom:E.fieldCustom.trim(),
-    works:works.map(w=>({id:w.id,vid:w.vid,act:w.act,custom:(w.custom||'').trim(),memo:(w.memo||'').trim(),photos:w.photos||[]}))
+    fieldActs:[...E.fieldActs],fieldCustom:E.fieldCustom.trim(),fieldPhotos:[...(E.fieldPhotos||[])],
+    works:works.map(w=>({id:w.id,vids:[...w.vids],acts:[...w.acts],custom:(w.custom||'').trim(),memo:(w.memo||'').trim(),photos:w.photos||[]}))
   };
   dayId=dayObj.id;
   if(E.id){
     const idx=D.days.findIndex(x=>x.id===E.id);
-    // 削除された作業行の写真をクラウドからも削除
+    // 写真が無くなった行(行削除・写真全削除)はクラウドの写真も削除
     if(idx>=0){
-      const oldIds=new Set((D.days[idx].works||[]).filter(w=>(w.photos||[]).length).map(w=>w.id));
-      const newIds=new Set(dayObj.works.map(w=>w.id));
+      const old=D.days[idx];
+      const oldIds=new Set((old.works||[]).filter(w=>(w.photos||[]).length).map(w=>w.id));
+      if((old.fieldPhotos||[]).length)oldIds.add(old.id);
+      const newIds=new Set(dayObj.works.filter(w=>(w.photos||[]).length).map(w=>w.id));
+      if((dayObj.fieldPhotos||[]).length)newIds.add(dayObj.id);
       oldIds.forEach(id=>{if(!newIds.has(id)){_pendingPhotoDeletes.add(id);_syncedPhotoIds.delete(id);}});
       D.days[idx]=dayObj;
     }else D.days.push(dayObj);
@@ -1237,8 +1321,10 @@ function saveEntry(){
   }else{
     D.days.push(dayObj);
   }
-  // 写真が変わった行は再送信対象にする
+  // 写真が変わった行は再送信対象にする（畑全体の写真も含む）
   dayObj.works.forEach(w=>{_syncedPhotoIds.delete(w.id);if(!(w.photos||[]).length)_syncedPhotoIds.add(w.id);});
+  _syncedPhotoIds.delete(dayObj.id);
+  if(!(dayObj.fieldPhotos||[]).length)_syncedPhotoIds.add(dayObj.id);
   plans.forEach(p=>D.plans.push({id:newId('p'),src:dayId,date:p.date,vid:p.vid,act:p.act,custom:(p.custom||'').trim()}));
   harvests.forEach(h=>{
     const variety=h.variety==='__free__'?(h.varietyFree||'').trim():h.variety;
@@ -1314,7 +1400,7 @@ function saveVeg(){
 }
 function deleteVeg(id){
   const v=getVeg(id);
-  const used=D.days.some(dd=>(dd.works||[]).some(w=>w.vid===id))||D.harvests.some(h=>h.vid===id);
+  const used=D.days.some(dd=>(dd.works||[]).some(w=>workVids(w).includes(id)))||D.harvests.some(h=>h.vid===id);
   if(!confirm(`「${v.name}」を削除しますか？${used?'\n※この野菜の作業・収穫記録が一覧に表示されなくなります':''}`))return;
   D.vegetables=D.vegetables.filter(x=>x.id!==id);
   if(S.selVeg===id)S.selVeg=null;
