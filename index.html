@@ -231,66 +231,107 @@ const OPT_C=['種まき','間引','芽掻','仕立','苗定植','施水','施肥
 const WEATHER_OPTS=['快晴','晴','晴時々曇','曇','小雨','雨','大雨','にわか雨','霧','雪','雷雨'];
 
 // ===================== 野菜シード（選択肢B/D + 種袋・栽培情報） =====================
+// tax=分類(科/属) traits=特長(原産地/耐寒・耐暑性/水やり/肥料/その他) ※前回アプリと同構成
 // mgmt.germTemp=発芽適温 / growTemp=生育適温 / harvestDays=収穫までに要する日数
 const VEG_SEED=[
-{id:'v1',name:'大根',emoji:'🫚',color:'#78350f',varieties:['おでん大根 味福'],family:'アブラナ科',
+{id:'v1',name:'大根',emoji:'🫚',color:'#78350f',varieties:['おでん大根 味福'],
+ tax:{family:'アブラナ科',genus:'ダイコン属'},
+ traits:{origin:'地中海沿岸〜中央アジア',coldHeat:'冷涼を好む。耐寒性あり・高温に弱い',water:'発芽まで乾かさない。以降は控えめでよい',fertilizer:'元肥中心。未熟堆肥は股根の原因になる',other:'土を深く耕すとまっすぐ太る。防虫ネット推奨'},
  mgmt:{germTemp:'15-30℃',growTemp:'15-25℃',harvestDays:'種まき後 約60日(長さ30cm位)',
  sow:'深さ約2cmに3-4粒点まき(株間30cm)。2-3回に分けて間引き、本葉5枚までに1本立ち',fertilize:'最後の間引き時に化成肥料50g/㎡・土寄せ',note:'種袋:トーホク「元祖おでん大根 味福」。高温期の種まきは品質低下のため避ける'}},
-{id:'v2',name:'人参',emoji:'🥕',color:'#ea580c',varieties:['ベターリッチ'],family:'セリ科',
+{id:'v2',name:'人参',emoji:'🥕',color:'#ea580c',varieties:['ベターリッチ'],
+ tax:{family:'セリ科',genus:'ニンジン属'},
+ traits:{origin:'アフガニスタン',coldHeat:'耐寒性あり・高温乾燥に弱い',water:'発芽までの保湿が最重要。以降は乾燥時のみ',fertilizer:'追肥は本葉5-6枚の頃。多肥は又根の原因',other:'好光性種子。発芽が最大の難関'},
  mgmt:{germTemp:'15-25℃',growTemp:'18-22℃',harvestDays:'種まき後 110-130日',
- sow:'好光性種子。土かけはごく薄く、発芽まで乾かさない',note:'発芽が最大の難関。すじまき後の保湿が重要'}},
-{id:'v3',name:'小蕪',emoji:'⚪',color:'#a3a3a3',varieties:['白露'],family:'アブラナ科',
+ sow:'好光性種子。土かけはごく薄く、発芽まで乾かさない',note:'すじまき後の保湿(不織布べたがけ等)が有効'}},
+{id:'v3',name:'小蕪',emoji:'⚪',color:'#a3a3a3',varieties:['白露'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'地中海沿岸〜アフガニスタン',coldHeat:'冷涼を好む。耐寒性は中程度・暑さに弱い',water:'乾湿の差が大きいと裂根する。安定した水分を保つ',fertilizer:'元肥中心(追肥不要・種袋)',other:'根こぶ病に強い品種(白露)。防虫ネットで害虫と強い雨を防ぐ'},
  mgmt:{germTemp:'15-25℃',growTemp:'15-25℃',harvestDays:'種まき後 約50日(直径5-6cm)',
- sow:'深さ約1cmに3-4粒点まき(株間12cm)。本葉4-5枚で1本立ち',fertilize:'追肥不要。最後の間引き時に土寄せ',note:'種袋:トーホク「根こぶ病に強いかぶ 白露」。防虫ネットで害虫と強い雨を防ぐ'}},
-{id:'v4',name:'ラディッシュ',emoji:'🔴',color:'#dc2626',varieties:['赤丸はつか'],family:'アブラナ科',
+ sow:'深さ約1cmに3-4粒点まき(株間12cm)。本葉4-5枚で1本立ち',fertilize:'追肥不要。最後の間引き時に土寄せ',note:'種袋:トーホク「根こぶ病に強いかぶ 白露」'}},
+{id:'v4',name:'ラディッシュ',emoji:'🔴',color:'#dc2626',varieties:['赤丸はつか'],
+ tax:{family:'アブラナ科',genus:'ダイコン属'},
+ traits:{origin:'地中海沿岸',coldHeat:'冷涼を好む。高温期は根の形が乱れる',water:'乾湿の差で裂根。こまめに',fertilizer:'元肥のみで十分',other:'少しずつ何回かに分けてまくと連続収穫できる'},
  mgmt:{germTemp:'15-30℃',growTemp:'15-25℃',harvestDays:'種まき後 20-40日(直径2-3cm)',
- sow:'深さ約1cmにすじまき。最終株間4-5cm',note:'種袋:トーホク「赤丸はつか」。少しずつ何回かに分けてまくと連続収穫できる。とり遅れ注意'}},
-{id:'v5',name:'白菜',emoji:'🥬',color:'#16a34a',varieties:['オレンジクイン','お黄にいり'],family:'アブラナ科',
+ sow:'深さ約1cmにすじまき。最終株間4-5cm',note:'種袋:トーホク「赤丸はつか」。とり遅れ注意'}},
+{id:'v5',name:'白菜',emoji:'🥬',color:'#16a34a',varieties:['オレンジクイン','お黄にいり'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'中国北部',coldHeat:'耐寒性あり(霜には外葉を縛って保護)・暑さに弱い',water:'結球開始までは多めに。結球後は控えめ',fertilizer:'肥料食い。結球開始前の追肥が重要',other:'防虫ネットほぼ必須。結球しない原因は播種遅れ・肥料不足が多い'},
  mgmt:{germTemp:'20-25℃',growTemp:'15-20℃',harvestDays:'定植後 60-70日 / 種まき後 80-90日',
- note:'結球期に低温に当てる。防虫ネット推奨'}},
-{id:'v6',name:'ミニ白菜',emoji:'🥬',color:'#15803d',varieties:['タイニーシュシュ','プチヒリ'],family:'アブラナ科',
+ note:'結球期に低温に当てると甘みが増す'}},
+{id:'v6',name:'ミニ白菜',emoji:'🥬',color:'#15803d',varieties:['タイニーシュシュ','プチヒリ'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'中国北部(改良品種)',coldHeat:'耐寒性あり・暑さに弱い',water:'結球開始までは多めに',fertilizer:'白菜に準ずるがやや少なめでよい',other:'密植可・プランター栽培も可能。小株どりもできる'},
  mgmt:{germTemp:'20-25℃',growTemp:'15-20℃',harvestDays:'種まき後 40-60日',
- note:'密植可。小株どりからかき取り収穫も可能'}},
-{id:'v7',name:'キャベツ',emoji:'🥗',color:'#65a30d',varieties:['柳生','金系'],family:'アブラナ科',
+ note:'タイニーシュシュは生食も可'}},
+{id:'v7',name:'キャベツ',emoji:'🥗',color:'#65a30d',varieties:['柳生','金系'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'ヨーロッパ地中海沿岸',coldHeat:'耐寒性強い・夏品種以外は暑さに弱い',water:'結球期に乾燥させない。急な多水は裂球の原因',fertilizer:'追肥2回(活着後・結球始め)',other:'青虫・ヨトウムシ対策に防虫ネット推奨'},
  mgmt:{germTemp:'15-30℃',growTemp:'15-20℃',harvestDays:'定植後 60-70日',
- note:'結球始めの追肥が重要。防虫ネット推奨'}},
-{id:'v8',name:'葉レタス',emoji:'🥗',color:'#84cc16',varieties:['グリーンウェーブ(青)','レッドファイアー(赤)'],family:'キク科',
+ note:'結球始めの追肥が玉の大きさを決める'}},
+{id:'v8',name:'葉レタス',emoji:'🥗',color:'#84cc16',varieties:['グリーンウェーブ(青)','レッドファイアー(赤)'],
+ tax:{family:'キク科',genus:'アキノノゲシ属'},
+ traits:{origin:'地中海沿岸〜西アジア',coldHeat:'冷涼を好む。高温で苦味が出てとう立ちする',water:'浅根性で乾燥に弱い。こまめに',fertilizer:'多肥不要。チッソ過多は苦味の原因',other:'好光性種子。外葉からかき取り収穫すると長く楽しめる'},
  mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'定植後 30-40日 / 種まき後 55-70日',
- note:'高温で発芽しにくい。外葉からかき取り収穫可'}},
-{id:'v9',name:'パクチー',emoji:'🌿',color:'#0d9488',varieties:[],family:'セリ科',
+ note:'苗:グリーンウェーブ(青)・レッドファイアー(赤)のラベルあり'}},
+{id:'v9',name:'パクチー',emoji:'🌿',color:'#0d9488',varieties:[],
+ tax:{family:'セリ科',genus:'コエンドロ属'},
+ traits:{origin:'地中海東部',coldHeat:'比較的耐寒性あり・高温でとう立ちする',water:'乾燥に弱い。こまめに',fertilizer:'少なめでよい',other:'直根性のため移植を嫌う。直まき推奨'},
  mgmt:{germTemp:'17-20℃',growTemp:'15-25℃',harvestDays:'種まき後 40-60日',
- sow:'殻を軽く割って一晩吸水させると発芽しやすい',note:'直根性のため移植を嫌う。直まき推奨'}},
-{id:'v10',name:'春菊',emoji:'🌼',color:'#ca8a04',varieties:['中葉しゅんぎく'],family:'キク科',
+ sow:'殻を軽く割って一晩吸水させると発芽しやすい'}},
+{id:'v10',name:'春菊',emoji:'🌼',color:'#ca8a04',varieties:['中葉しゅんぎく'],
+ tax:{family:'キク科',genus:'シュンギク属'},
+ traits:{origin:'地中海沿岸',coldHeat:'冷涼を好む。霜に当たると傷むため冬はトンネルが安心',water:'乾燥に弱い。こまめに',fertilizer:'酸性土を嫌う(苦土石灰100g/㎡)。摘み取り後に追肥',other:'好光性種子。摘み取り型は長期収穫できる'},
  mgmt:{germTemp:'15-25℃',growTemp:'15-25℃',harvestDays:'種まき後 春30-40日 / 秋30-50日',
- sow:'好光性種子。土かけはごく薄く。最終株間15-20cm',fertilize:'苦土石灰100g/㎡(酸性土を嫌う)',harvest:'摘み取りは2節残して収穫すると次の芽が伸びる',note:'種袋:トーホク「中葉しゅんぎく」'}},
-{id:'v11',name:'ほうれん草',emoji:'🍃',color:'#166534',varieties:['やまと'],family:'ヒユ科',
+ sow:'好光性種子。土かけはごく薄く。最終株間15-20cm',harvest:'摘み取りは2節残して収穫すると次の芽が伸びる',note:'種袋:トーホク「中葉しゅんぎく」'}},
+{id:'v11',name:'ほうれん草',emoji:'🍃',color:'#166534',varieties:['やまと'],
+ tax:{family:'ヒユ科',genus:'ホウレンソウ属'},
+ traits:{origin:'中央アジア(ペルシャ)',coldHeat:'耐寒性非常に強い(-10℃程度まで)・暑さに弱い',water:'発芽まで保湿。過湿は立枯れの原因',fertilizer:'酸性土を強く嫌う(苦土石灰150g/㎡)',other:'寒さに当てる「寒締め」で甘みが増す'},
  mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'種まき後 30-50日(草丈20-25cm)',
- sow:'深さ約1cmにすじまき。最終株間5cm位',fertilize:'苦土石灰150g/㎡(酸性土を強く嫌う)',note:'種袋:トーホク「日本ほうれん草 やまと」。気温が高いと発芽しにくい。冬の寒さに当たると一層おいしくなる'}},
-{id:'v12',name:'小松菜',emoji:'🌿',color:'#22c55e',varieties:['寒くても伸びる小松菜'],family:'アブラナ科',
+ sow:'深さ約1cmにすじまき。最終株間5cm位',note:'種袋:トーホク「日本ほうれん草 やまと」。気温が高いと発芽しにくい'}},
+{id:'v12',name:'小松菜',emoji:'🌿',color:'#22c55e',varieties:['寒くても伸びる小松菜'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'日本(東京・小松川)',coldHeat:'耐寒性強い。ほぼ周年栽培できる',water:'普通。乾燥が続くときに',fertilizer:'生育期間が短く元肥中心',other:'萎黄病・白さび病に強い品種。防虫ネット推奨'},
  mgmt:{germTemp:'20-30℃(地温)',growTemp:'15-25℃',harvestDays:'種まき後 夏まき22-30日 / 秋まき40-50日',
  sow:'条間15cm・1cm間隔のすじまき。間引いて株間5cm',harvest:'草丈15-30cmで順次収穫',note:'種袋:サカタ「寒くても伸びる小松菜」。時期をずらしてまくと連続収穫できる'}},
-{id:'v13',name:'青梗菜',emoji:'🥬',color:'#059669',varieties:['緑菜'],family:'アブラナ科',
+{id:'v13',name:'青梗菜',emoji:'🥬',color:'#059669',varieties:['緑菜'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'中国華南',coldHeat:'比較的暑さに強く、耐寒性は中程度',water:'乾燥に弱い。こまめに',fertilizer:'生育期間が短く元肥中心',other:'虫が付きやすいので防虫ネット推奨(種袋)。プランター栽培も可'},
  mgmt:{germTemp:'15-30℃',growTemp:'15-30℃',harvestDays:'種まき後 30-40日(草丈25cm位)',
- sow:'深さ約1cmにすじまき。最終株間15cm',note:'種袋:トーホク「早どりチンゲンサイ 緑菜」。草丈10-15cmのミニサイズから収穫可。防虫ネット推奨'}},
-{id:'v14',name:'そら豆',emoji:'🫛',color:'#4d7c0f',varieties:['一寸そら豆'],family:'マメ科',
+ sow:'深さ約1cmにすじまき。最終株間15cm',note:'種袋:トーホク「早どりチンゲンサイ 緑菜」。草丈10-15cmのミニサイズから収穫可'}},
+{id:'v14',name:'そら豆',emoji:'🫛',color:'#4d7c0f',varieties:['一寸そら豆'],
+ tax:{family:'マメ科',genus:'ソラマメ属'},
+ traits:{origin:'北アフリカ〜西南アジア',coldHeat:'小苗(本葉2-3枚)は耐寒性強いが大苗は寒害を受ける。暑さに弱い',water:'開花期以降の乾燥に注意',fertilizer:'根粒菌が働くためチッソ控えめ',other:'アブラムシが付きやすい。連作不可(4-5年空ける)'},
  mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'種まき後 約180-210日(10月まき→翌5月頃)',
- sow:'お歯黒を斜め下にして種まき。本葉2枚頃までに定植',note:'小苗(本葉2-3枚)で越冬させる。肥料過多に注意'}},
-{id:'v15',name:'エンドウ豆',emoji:'🫛',color:'#3f6212',varieties:['久留米実'],family:'マメ科',
+ sow:'お歯黒を斜め下にして種まき。本葉2枚頃までに定植',note:'小苗で越冬させるのがコツ。肥料過多に注意'}},
+{id:'v15',name:'エンドウ豆',emoji:'🫛',color:'#3f6212',varieties:['久留米実'],
+ tax:{family:'マメ科',genus:'エンドウ属'},
+ traits:{origin:'中央アジア〜中近東',coldHeat:'小苗(本葉2-3枚)が最も耐寒性が高い。暑さに弱い',water:'過湿を嫌う。水はけよく',fertilizer:'根粒菌が働くためチッソ控えめ',other:'連作を強く嫌う(4-5年空ける)。春に支柱・ネットで誘引'},
  mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'種まき後 約180-210日(秋まき→翌4-5月)',
- note:'小苗で越冬。春に支柱・ネットで誘引。連作を強く嫌う(4-5年空ける)'}},
-{id:'v16',name:'一本葱',emoji:'🌱',color:'#0891b2',varieties:['一翠太','下仁田葱'],family:'ヒガンバナ科',
+ note:'大苗で越冬させると寒害を受けるので種まき時期に注意'}},
+{id:'v16',name:'一本葱',emoji:'🌱',color:'#0891b2',varieties:['一翠太','下仁田葱'],
+ tax:{family:'ヒガンバナ科',genus:'ネギ属'},
+ traits:{origin:'中国西部',coldHeat:'耐寒性・耐暑性ともに強い',water:'過湿に弱い。水はけよく',fertilizer:'土寄せのたびに追肥',other:'土寄せの回数で軟白部の長さが決まる'},
  mgmt:{germTemp:'15-25℃',growTemp:'15-20℃',harvestDays:'定植後 60-90日',
- transplant:'深さ20-30cmの溝に5cm間隔で植え、成長に応じて土寄せ',note:'土寄せの回数で軟白部の長さが決まる'}},
-{id:'v17',name:'ニンニク',emoji:'🧄',color:'#9333ea',varieties:['福地ホワイト'],family:'ヒガンバナ科',
+ transplant:'深さ20-30cmの溝に5cm間隔で植え、成長に応じて土寄せ'}},
+{id:'v17',name:'ニンニク',emoji:'🧄',color:'#9333ea',varieties:['福地ホワイト'],
+ tax:{family:'ヒガンバナ科',genus:'ネギ属'},
+ traits:{origin:'中央アジア',coldHeat:'耐寒性強い(福地ホワイトは寒地系)・暑さに弱い',water:'乾燥が続くときのみ',fertilizer:'春の追肥が重要(止め肥は3月まで)',other:'さび病に注意。とう立ちした花芽は摘み取る(ニンニクの芽として食用可)'},
  mgmt:{germTemp:'15-20℃',growTemp:'10-20℃',harvestDays:'植付後 約240-270日(9-10月植え→翌5-6月)',
- transplant:'りん片を尖った方を上に深さ5-6cmで植付(株間15cm)',note:'春にとう立ちした花芽(ニンニクの芽)は摘み取る'}},
-{id:'v18',name:'玉ねぎ',emoji:'🧅',color:'#b45309',varieties:[],family:'ヒガンバナ科',
+ transplant:'りん片を尖った方を上に深さ5-6cmで植付(株間15cm)'}},
+{id:'v18',name:'玉ねぎ',emoji:'🧅',color:'#b45309',varieties:[],
+ tax:{family:'ヒガンバナ科',genus:'ネギ属'},
+ traits:{origin:'中央アジア',coldHeat:'耐寒性強い・高温多湿に弱い',water:'定植後と春先の生育期に。収穫前は控える',fertilizer:'止め肥は3月まで(遅れると貯蔵性が落ちる)',other:'大苗定植はとう立ちの原因。葉が8割倒伏したら収穫適期'},
  mgmt:{germTemp:'15-20℃',growTemp:'12-20℃',harvestDays:'定植後 約180-200日(11月定植→翌5-6月)',
- transplant:'苗の白い部分が隠れる程度の浅植え(株間12-15cm)',note:'葉が8割倒伏したら収穫適期'}}
+ transplant:'苗の白い部分が隠れる程度の浅植え(株間12-15cm)'}}
 ];
+// 栽培管理メモの項目（前回アプリの項目＋新規3項目）
 const MGMT_FIELDS=[['germTemp','発芽適温'],['growTemp','生育適温'],['harvestDays','収穫までに要する日数'],
- ['soil','土づくり'],['sow','種まき'],['transplant','定植・植付'],['fertilize','施肥'],['water','水やり'],
- ['harvest','収穫'],['storage','保存'],['note','備考']];
+ ['soil','土作・肥料設計'],['ridge','畝立て'],['sow','撒種・種まき'],['transplant','苗定植・植付'],
+ ['water','水やり'],['train','仕立'],['fertilize','施肥'],['bud','芽かき'],['leaf','葉かき'],
+ ['spray','散布'],['flowerFruit','摘花・果'],['harvest','収穫'],['storage','保存方法'],
+ ['expected','収穫数目安'],['note','備考']];
+const TRAIT_FIELDS=[['origin','原産地'],['coldHeat','耐寒・耐暑性'],['water','水やり'],['fertilizer','肥料'],['other','その他']];
 
 // ===================== 天気取得（Open-Meteo / 千葉県印西市戸神） =====================
 const DEFAULT_LOC={name:'千葉県印西市戸神',lat:35.788,lon:140.120};
@@ -404,9 +445,23 @@ function _normalizeVeg(v){
   if(!Array.isArray(v.varieties))v.varieties=[];
   if(!v.mgmt||typeof v.mgmt!=='object')v.mgmt={};
   MGMT_FIELDS.forEach(([k])=>{if(v.mgmt[k]==null)v.mgmt[k]='';});
-  if(v.family==null)v.family='';
+  if(!v.tax||typeof v.tax!=='object')v.tax={};
+  v.tax.family=v.tax.family??v.family??'';
+  v.tax.genus=v.tax.genus??'';
+  delete v.family;
+  if(!v.traits||typeof v.traits!=='object')v.traits={};
+  TRAIT_FIELDS.forEach(([k])=>{if(v.traits[k]==null)v.traits[k]='';});
   if(v.emoji==null)v.emoji='🌱';
   if(v.color==null)v.color='#3d7a3d';
+  // 旧データ救済: シードに同じidがあれば、空欄の分類・特長・管理メモをシード値で補完（1回のみ）
+  const seed=v.seedv>=2?null:VEG_SEED.find(s=>s.id===v.id);
+  if(seed){
+    v.seedv=2;
+    if(!v.tax.family&&seed.tax)v.tax.family=seed.tax.family||'';
+    if(!v.tax.genus&&seed.tax)v.tax.genus=seed.tax.genus||'';
+    if(seed.traits)TRAIT_FIELDS.forEach(([k])=>{if(!v.traits[k])v.traits[k]=seed.traits[k]||'';});
+    if(seed.mgmt)MGMT_FIELDS.forEach(([k])=>{if(!v.mgmt[k])v.mgmt[k]=seed.mgmt[k]||'';});
+  }
   return v;
 }
 function _normalizeDay(d){
@@ -646,7 +701,6 @@ function renderSidebar(){
   const el=document.getElementById('veg-list');
   el.innerHTML=D.vegetables.map(v=>`
     <div class="veg-item ${S.selVeg===v.id&&S.view==='detail'?'active':''}" onclick="selectVeg('${v.id}')">
-      <span class="veg-dot" style="background:${v.color}"></span>
       <span>${v.emoji}</span><span class="veg-name">${esc(v.name)}</span>
     </div>`).join('');
 }
@@ -704,7 +758,7 @@ function renderTimeline(main){
   // 野菜行
   D.vegetables.forEach(v=>{
     html+=`<tr><td class="tl-veg-col"><button class="tl-veg-btn" onclick="selectVeg('${v.id}')">
-      <span class="veg-dot" style="background:${v.color}"></span>${v.emoji}${esc(v.name)}</button></td>`;
+      ${v.emoji}${esc(v.name)}</button></td>`;
     html+=dates.map(ds=>{
       const ws=worksBy[ds+'_'+v.id]||[];
       const ps=plansBy[ds+'_'+v.id]||[];
@@ -749,8 +803,7 @@ function openDayPopup(ds,vid){
       ${works.map(w=>{
         const v=getVeg(w.vid);
         return `<div style="margin-top:4px">
-          <span class="veg-dot" style="background:${v?v.color:'#999'};display:inline-block"></span>
-          ${v?esc(v.name):'?'} <b style="color:${actColor(workAct(w))}">${esc(workAct(w))}</b>
+          ${v?v.emoji+esc(v.name):'?'} <b style="color:${actColor(workAct(w))}">${esc(workAct(w))}</b>
           ${w.memo?`<span style="color:var(--muted);font-size:11px"> ${esc(w.memo)}</span>`:''}
           ${w.photos&&w.photos.length?`<div class="photo-thumbs">${w.photos.map((p,i)=>`<img class="photo-thumb" src="${p}" onclick="openLightbox('${w.id}',${i})">`).join('')}</div>`:''}
         </div>`;
@@ -828,26 +881,38 @@ function renderDetail(main){
   main.innerHTML=html;
 }
 function renderInfoTab(v){
-  const m=v.mgmt||{};
-  let html=`<div class="section-card">
-    <div class="section-title">🌡 栽培管理メモ</div>
+  const m=v.mgmt||{},t=v.traits||{},x=v.tax||{};
+  const f=(label,val)=>`<div class="field-item"><label>${label}</label><div class="val">${esc(val)||'—'}</div></div>`;
+  const ff=(label,val)=>`<div class="field-item full"><label>${label}</label><div class="val">${esc(val)||'—'}</div></div>`;
+  return `
+  <div class="section-card">
+    <div class="section-title">🔬 分類・特長</div>
+    <div class="field-group">
+      ${f('科',x.family)}${f('属',x.genus)}
+      ${f('原産地',t.origin)}${f('耐寒・耐暑性',t.coldHeat)}
+      ${f('水やり',t.water)}${f('肥料',t.fertilizer)}
+      ${ff('その他',t.other)}
+    </div>
+  </div>
+  <div class="section-card">
+    <div class="section-title">🌱 栽培管理メモ</div>
     <div class="temp-grid">
       <div class="temp-box"><div class="t-label">発芽適温</div><div class="t-val">${esc(m.germTemp||'—')}</div></div>
       <div class="temp-box"><div class="t-label">生育適温</div><div class="t-val">${esc(m.growTemp||'—')}</div></div>
       <div class="temp-box"><div class="t-label">収穫までに要する日数</div><div class="t-val">${esc(m.harvestDays||'—')}</div></div>
     </div>
     <div class="field-group">
-      ${MGMT_FIELDS.slice(3).filter(([k])=>m[k]).map(([k,l])=>`<div class="field-item full"><label>${l}</label><div class="val">${esc(m[k])}</div></div>`).join('')||'<div style="color:var(--muted);font-size:12px">メモはまだありません（編集から追加できます）</div>'}
-    </div>
-  </div>
-  <div class="section-card">
-    <div class="section-title">📖 基本情報</div>
-    <div class="field-group">
-      <div class="field-item"><label>科</label><div class="val">${esc(v.family||'—')}</div></div>
-      <div class="field-item"><label>品種</label><div class="val">${esc((v.varieties||[]).join('、')||'—')}</div></div>
+      ${ff('土作・肥料設計',m.soil)}
+      ${f('畝立て',m.ridge)}${f('撒種・種まき',m.sow)}
+      ${ff('苗定植・植付',m.transplant)}
+      ${f('水やり',m.water)}${f('仕立',m.train)}
+      ${f('施肥',m.fertilize)}${f('芽かき',m.bud)}
+      ${f('葉かき',m.leaf)}${f('散布',m.spray)}
+      ${f('摘花・果',m.flowerFruit)}${f('収穫',m.harvest)}
+      ${f('保存方法',m.storage)}${f('収穫数目安',m.expected)}
+      ${ff('備考',m.note)}
     </div>
   </div>`;
-  return html;
 }
 function renderSchedTab(v){
   // 実施（日次記録から抽出）＋予定＋収穫
@@ -1165,7 +1230,7 @@ function saveEntry(){
 function gotoVegForm(id){S.editVegId=id;S.view='veg-form';render();}
 function renderVegForm(main){
   const v=S.editVegId?getVeg(S.editVegId):null;
-  const m=(v&&v.mgmt)||{};
+  const m=(v&&v.mgmt)||{},t=(v&&v.traits)||{},x=(v&&v.tax)||{};
   main.innerHTML=`<div id="form-wrap"><div class="card">
     <h2>${v?'🥬 野菜の編集':'🥬 野菜の追加'}</h2>
     <div class="form-row-2">
@@ -1173,12 +1238,16 @@ function renderVegForm(main){
       <div><label>絵文字</label><input id="vf-emoji" value="${v?esc(v.emoji):'🌱'}"></div>
     </div>
     <div class="form-row-2">
-      <div><label>色</label><input type="color" id="vf-color" value="${v?v.color:'#3d7a3d'}" style="height:34px;padding:2px"></div>
-      <div><label>科（分類）</label><input id="vf-family" value="${v?esc(v.family):''}" placeholder="例: アブラナ科"></div>
+      <div><label>色（作業の点の色など）</label><input type="color" id="vf-color" value="${v?v.color:'#3d7a3d'}" style="height:34px;padding:2px"></div>
+      <div><label>品種（「、」区切りで複数）</label><input id="vf-varieties" value="${v?esc((v.varieties||[]).join('、')):''}" placeholder="例: 白露"></div>
     </div>
-    <label>品種（「、」区切りで複数）</label>
-    <input id="vf-varieties" value="${v?esc((v.varieties||[]).join('、')):''}" placeholder="例: 白露、よかった根">
-    <h3 style="margin-top:14px;border-bottom:1px solid var(--border);padding-bottom:4px">栽培管理メモ</h3>
+    <h3 style="margin-top:14px;border-bottom:1px solid var(--border);padding-bottom:4px">🔬 分類・特長</h3>
+    <div class="form-row-2">
+      <div><label>科</label><input id="vf-family" value="${esc(x.family||'')}" placeholder="例: アブラナ科"></div>
+      <div><label>属</label><input id="vf-genus" value="${esc(x.genus||'')}" placeholder="例: アブラナ属"></div>
+    </div>
+    ${TRAIT_FIELDS.map(([k,l])=>`<label>${l}</label><textarea id="vf-t-${k}" rows="2">${esc(t[k]||'')}</textarea>`).join('')}
+    <h3 style="margin-top:14px;border-bottom:1px solid var(--border);padding-bottom:4px">🌱 栽培管理メモ</h3>
     <div class="form-row-3">
       <div><label>発芽適温</label><input id="vf-germTemp" value="${esc(m.germTemp||'')}" placeholder="例: 15-20℃"></div>
       <div><label>生育適温</label><input id="vf-growTemp" value="${esc(m.growTemp||'')}" placeholder="例: 15-20℃"></div>
@@ -1198,10 +1267,12 @@ function saveVeg(){
   const data={
     name,emoji:document.getElementById('vf-emoji').value.trim()||'🌱',
     color:document.getElementById('vf-color').value,
-    family:document.getElementById('vf-family').value.trim(),
     varieties:document.getElementById('vf-varieties').value.split(/[、,]/).map(s=>s.trim()).filter(Boolean),
+    tax:{family:document.getElementById('vf-family').value.trim(),genus:document.getElementById('vf-genus').value.trim()},
+    traits:{},
     mgmt:{}
   };
+  TRAIT_FIELDS.forEach(([k])=>{data.traits[k]=(document.getElementById('vf-t-'+k)||{value:''}).value.trim();});
   MGMT_FIELDS.forEach(([k])=>{data.mgmt[k]=(document.getElementById('vf-'+k)||{value:''}).value.trim();});
   if(S.editVegId){
     const v=getVeg(S.editVegId);
