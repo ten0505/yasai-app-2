@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新 家庭菜園管理 v20261105</title>
+<style>
+:root {
+  --primary:#3d7a3d; --primary-d:#2a5a2a; --primary-l:#a8d4a8;
+  --accent:#e8952a; --bg:#f0f4ed; --surface:#fff; --border:#cce0cc;
+  --text:#1a2e1a; --muted:#5a7a5a; --sidebar:200px; --hdr:52px; --r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Meiryo','Yu Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit;border:1px solid var(--border);border-radius:4px;padding:5px 8px;width:100%;background:#fff}
+textarea{resize:vertical}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;margin-top:8px}
+h2{font-size:15px;color:var(--primary-d)}
+h3{font-size:13px;color:var(--primary-d)}
+
+/* Layout */
+#hdr{position:fixed;top:0;left:0;right:0;height:var(--hdr);background:var(--primary-d);
+  color:#fff;display:flex;align-items:center;gap:8px;padding:0 12px;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+#hdr h1{font-size:15px;font-weight:bold;flex:0 0 auto}
+.nav-tabs{display:flex;gap:4px;flex:1}
+.nav-tab{padding:5px 10px;border-radius:20px;color:rgba(255,255,255,.75);font-size:12px;transition:.2s}
+.nav-tab:hover{background:rgba(255,255,255,.15);color:#fff}
+.nav-tab.active{background:#fff;color:var(--primary-d);font-weight:bold}
+#toggle-sb{background:none;border:none;color:#fff;font-size:18px;width:32px;height:32px}
+#sync-badge{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.2);flex:0 0 auto}
+#sync-badge.ok{background:#16a34a}
+#sync-badge.error{background:#dc2626}
+#sync-badge.connecting{background:#ca8a04}
+
+.layout{display:flex;margin-top:var(--hdr);height:calc(100vh - var(--hdr))}
+#sidebar{width:var(--sidebar);flex:0 0 auto;background:#fff;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;transition:width .2s}
+#sidebar.collapsed{width:0}
+.sb-head{padding:10px 10px 6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sb-head span{font-weight:bold;font-size:12px;color:var(--muted)}
+.btn-sm{padding:3px 8px;background:var(--primary);color:#fff;border-radius:12px;font-size:11px}
+.btn-sm:hover{background:var(--primary-d)}
+#veg-list{flex:1;overflow-y:auto;padding:4px 0}
+.veg-item{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-left:3px solid transparent;transition:.15s}
+.veg-item:hover{background:var(--bg)}
+.veg-item.active{background:#e8f5e8;border-left-color:var(--primary)}
+.veg-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.veg-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+#main{flex:1;overflow:auto}
+
+/* Cards */
+.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:14px;margin:10px}
+.badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:bold}
+.badge-plan{background:#dbeafe;color:#1d4ed8}
+.badge-actual{background:#dcfce7;color:#15803d}
+.badge-harvest{background:#fee2e2;color:#dc2626}
+
+.btn{padding:7px 16px;border-radius:6px;font-size:13px;font-weight:bold;transition:.2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-d)}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Timeline */
+#timeline-wrap{padding:10px}
+.tl-scroll{overflow-x:auto}
+.tl-table{border-collapse:collapse;white-space:nowrap}
+.tl-table th,.tl-table td{border:1px solid var(--border);padding:0}
+.tl-veg-col{position:sticky;left:0;background:#fff;z-index:10;min-width:92px;max-width:92px;padding:4px 6px;
+  font-size:11px;font-weight:bold;vertical-align:middle;border-right:2px solid var(--primary-l)}
+.tl-head-veg{background:var(--primary-d);color:#fff;text-align:center;padding:4px 6px;font-size:11px;
+  position:sticky;left:0;z-index:20}
+.tl-date-head{min-width:40px;max-width:40px;text-align:center;padding:2px;font-size:10px;
+  background:var(--primary-d);color:rgba(255,255,255,.8);vertical-align:middle;cursor:pointer}
+.tl-date-head.today{background:#e8952a;color:#fff;font-weight:bold}
+.tl-date-head.weekend{background:#2a4a6a}
+.tl-cell{min-width:40px;max-width:40px;height:28px;vertical-align:middle;text-align:center;
+  cursor:pointer;transition:.15s;position:relative}
+.tl-cell:hover{background:#e8f5e8 !important}
+.tl-cell.today{background:#fffbeb !important}
+.tl-cell.has-data{background:#f0faf0}
+.tl-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 1px}
+.tl-dot.plan{background:#fff;border:2px solid #2563eb;width:8px;height:8px}
+.tl-veg-btn{display:flex;align-items:center;gap:4px;width:100%;text-align:left}
+
+/* Popup */
+#popup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;
+  align-items:center;justify-content:center;display:none}
+#popup.show{display:flex}
+.popup-box{background:#fff;border-radius:var(--r);max-width:440px;width:94%;max-height:80vh;
+  overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.popup-hdr{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:#fff;z-index:1}
+.popup-body{padding:14px}
+.popup-entry{padding:8px 0;border-bottom:1px solid var(--border)}
+.popup-entry:last-child{border-bottom:none}
+
+/* Lightbox */
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:8px}
+#lightbox.show{display:flex}
+#lightbox img{max-width:95vw;max-height:85vh;border-radius:6px}
+#lightbox .lb-nav{color:#fff;font-size:13px}
+
+/* Detail */
+#detail-wrap{padding:10px}
+.veg-header{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);
+  padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.veg-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex:0 0 auto}
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:10px}
+.tab-btn{padding:8px 16px;font-size:12px;font-weight:bold;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-btn:hover{color:var(--primary)}
+.field-group{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.field-item label{font-size:11px;color:var(--muted);margin:0}
+.field-item .val{font-size:13px;color:var(--text);min-height:18px;padding:2px 0;word-break:break-all;white-space:pre-wrap}
+.field-item.full{grid-column:1/-1}
+.section-card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:12px;margin-bottom:8px}
+.section-title{font-size:12px;font-weight:bold;color:var(--primary-d);margin-bottom:8px;
+  padding-bottom:4px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.temp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.temp-box{background:#f0f8f0;border:1px solid var(--primary-l);border-radius:6px;padding:8px;text-align:center}
+.temp-box .t-label{font-size:10px;color:var(--muted)}
+.temp-box .t-val{font-size:13px;font-weight:bold;color:var(--primary-d);margin-top:2px;white-space:pre-wrap}
+
+/* Schedule list */
+.sched-item{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);
+  padding:10px 12px;margin-bottom:6px;display:flex;gap:10px}
+.sched-item .left{flex:0 0 auto;text-align:center;min-width:56px}
+.sched-item .date{font-size:13px;font-weight:bold;color:var(--primary-d)}
+.sched-item .time{font-size:10px;color:var(--muted)}
+.sched-item .right{flex:1;min-width:0}
+.sched-item .act{font-weight:bold;font-size:13px;margin-bottom:3px}
+.sched-item .memo{font-size:11px;color:var(--muted)}
+.photo-thumbs{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.photo-thumb{width:56px;height:56px;object-fit:cover;border-radius:4px;cursor:pointer}
+
+/* Harvest table */
+.harvest-table{width:100%;border-collapse:collapse;font-size:12px}
+.harvest-table th{background:var(--primary-d);color:#fff;padding:6px 8px;text-align:left}
+.harvest-table td{padding:5px 8px;border-bottom:1px solid var(--border)}
+.harvest-table tr:hover td{background:var(--bg)}
+.harvest-total{font-weight:bold;background:#e8f5e8 !important}
+
+/* Entry form */
+#entry-wrap{padding:10px;max-width:760px}
+.entry-section{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:12px;margin-bottom:10px}
+.entry-section .sec-title{font-size:13px;font-weight:bold;color:#fff;background:var(--primary);
+  margin:-12px -12px 10px;padding:7px 12px;border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;align-items:center}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.work-row{border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px;background:#fafdf9}
+.work-row-head{display:flex;gap:6px;align-items:flex-end}
+.work-row-head .fi{flex:1}
+.row-del{color:#dc2626;font-size:16px;padding:4px 8px;flex:0 0 auto}
+.act-check-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.act-check-label{display:inline-flex;align-items:center;padding:5px 11px;border:1.5px solid var(--border);
+  border-radius:16px;cursor:pointer;font-size:12px;user-select:none;transition:.15s;background:#fff}
+.act-check-label:hover{border-color:var(--primary);background:#f0f8f0}
+.act-check-label.checked{background:var(--primary);color:#fff;border-color:var(--primary-d)}
+.act-check-label input[type=checkbox]{display:none}
+.form-actions{display:flex;gap:8px;margin-top:14px;padding-top:10px;border-top:1px solid var(--border)}
+.photo-item{position:relative;width:72px;height:72px;flex:0 0 auto}
+.photo-item img{width:72px;height:72px;object-fit:cover;border-radius:4px;display:block}
+.photo-del{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;border-radius:50%;
+  width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:none;line-height:1;padding:0}
+.photo-add-btn{font-size:11px;padding:4px 10px;border:1px dashed var(--primary);color:var(--primary);border-radius:12px;margin-top:4px}
+.wx-btn{background:#2563eb;color:#fff;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold}
+.wx-btn:disabled{opacity:.5;cursor:default}
+.day-list-item{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--border);font-size:12px}
+.day-list-item:hover{background:var(--bg)}
+
+/* Variety tags */
+.variety-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.vtag{padding:2px 8px;background:var(--primary-l);color:var(--primary-d);border-radius:12px;font-size:11px}
+
+#settings-wrap,#form-wrap{padding:10px;max-width:600px}
+
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1a2e1a;color:#fff;
+  padding:9px 20px;border-radius:20px;font-size:12px;z-index:400;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:.92}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--primary-l);border-radius:3px}
+
+@media (max-width:700px){
+  :root{--sidebar:160px}
+  #hdr h1{display:none}
+  .nav-tab{padding:5px 8px;font-size:11px}
+  .form-row-3{grid-template-columns:1fr}
+  .field-group{grid-template-columns:1fr}
+  .temp-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header id="hdr">
+  <button id="toggle-sb">☰</button>
+  <h1>🥬 新 家庭菜園管理</h1>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-v="timeline">📅 一覧</button>
+    <button class="nav-tab" data-v="detail">🥬 野菜詳細</button>
+    <button class="nav-tab" data-v="entry">✏️ 記録入力</button>
+    <button class="nav-tab" data-v="settings">⚙️ 設定</button>
+  </nav>
+  <span id="sync-badge">未同期</span>
+</header>
+<div class="layout">
+  <aside id="sidebar">
+    <div class="sb-head"><span>野菜一覧</span><button class="btn-sm" onclick="gotoVegForm(null)">＋追加</button></div>
+    <div id="veg-list"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="popup"><div class="popup-box" id="popup-box"></div></div>
+<div id="lightbox"><img id="lb-img" src="" alt=""><div class="lb-nav" id="lb-nav"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ===================== 選択肢 =====================
+const OPT_A=['土づくり','畝立','草刈','清掃'];
+const OPT_C=['種まき','間引','芽掻','仕立','苗定植','施水','施肥','葉掻','剪定','摘果・花','人工授粉','散布','成長観測','収穫','処分','自由入力'];
+const WEATHER_OPTS=['快晴','晴','晴時々曇','曇','小雨','雨','大雨','にわか雨','霧','雪','雷雨'];
+
+// ===================== 野菜シード（選択肢B/D + 種袋・栽培情報） =====================
+// mgmt.germTemp=発芽適温 / growTemp=生育適温 / harvestDays=収穫までに要する日数
+const VEG_SEED=[
+{id:'v1',name:'大根',emoji:'🫚',color:'#78350f',varieties:['おでん大根 味福'],family:'アブラナ科',
+ mgmt:{germTemp:'15-30℃',growTemp:'15-25℃',harvestDays:'種まき後 約60日(長さ30cm位)',
+ sow:'深さ約2cmに3-4粒点まき(株間30cm)。2-3回に分けて間引き、本葉5枚までに1本立ち',fertilize:'最後の間引き時に化成肥料50g/㎡・土寄せ',note:'種袋:トーホク「元祖おでん大根 味福」。高温期の種まきは品質低下のため避ける'}},
+{id:'v2',name:'人参',emoji:'🥕',color:'#ea580c',varieties:['ベターリッチ'],family:'セリ科',
+ mgmt:{germTemp:'15-25℃',growTemp:'18-22℃',harvestDays:'種まき後 110-130日',
+ sow:'好光性種子。土かけはごく薄く、発芽まで乾かさない',note:'発芽が最大の難関。すじまき後の保湿が重要'}},
+{id:'v3',name:'小蕪',emoji:'⚪',color:'#a3a3a3',varieties:['白露'],family:'アブラナ科',
+ mgmt:{germTemp:'15-25℃',growTemp:'15-25℃',harvestDays:'種まき後 約50日(直径5-6cm)',
+ sow:'深さ約1cmに3-4粒点まき(株間12cm)。本葉4-5枚で1本立ち',fertilize:'追肥不要。最後の間引き時に土寄せ',note:'種袋:トーホク「根こぶ病に強いかぶ 白露」。防虫ネットで害虫と強い雨を防ぐ'}},
+{id:'v4',name:'ラディッシュ',emoji:'🔴',color:'#dc2626',varieties:['赤丸はつか'],family:'アブラナ科',
+ mgmt:{germTemp:'15-30℃',growTemp:'15-25℃',harvestDays:'種まき後 20-40日(直径2-3cm)',
+ sow:'深さ約1cmにすじまき。最終株間4-5cm',note:'種袋:トーホク「赤丸はつか」。少しずつ何回かに分けてまくと連続収穫できる。とり遅れ注意'}},
+{id:'v5',name:'白菜',emoji:'🥬',color:'#16a34a',varieties:['オレンジクイン','お黄にいり'],family:'アブラナ科',
+ mgmt:{germTemp:'20-25℃',growTemp:'15-20℃',harvestDays:'定植後 60-70日 / 種まき後 80-90日',
+ note:'結球期に低温に当てる。防虫ネット推奨'}},
+{id:'v6',name:'ミニ白菜',emoji:'🥬',color:'#15803d',varieties:['タイニーシュシュ','プチヒリ'],family:'アブラナ科',
+ mgmt:{germTemp:'20-25℃',growTemp:'15-20℃',harvestDays:'種まき後 40-60日',
+ note:'密植可。小株どりからかき取り収穫も可能'}},
+{id:'v7',name:'キャベツ',emoji:'🥗',color:'#65a30d',varieties:['柳生','金系'],family:'アブラナ科',
+ mgmt:{germTemp:'15-30℃',growTemp:'15-20℃',harvestDays:'定植後 60-70日',
+ note:'結球始めの追肥が重要。防虫ネット推奨'}},
+{id:'v8',name:'葉レタス',emoji:'🥗',color:'#84cc16',varieties:['グリーンウェーブ(青)','レッドファイアー(赤)'],family:'キク科',
+ mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'定植後 30-40日 / 種まき後 55-70日',
+ note:'高温で発芽しにくい。外葉からかき取り収穫可'}},
+{id:'v9',name:'パクチー',emoji:'🌿',color:'#0d9488',varieties:[],family:'セリ科',
+ mgmt:{germTemp:'17-20℃',growTemp:'15-25℃',harvestDays:'種まき後 40-60日',
+ sow:'殻を軽く割って一晩吸水させると発芽しやすい',note:'直根性のため移植を嫌う。直まき推奨'}},
+{id:'v10',name:'春菊',emoji:'🌼',color:'#ca8a04',varieties:['中葉しゅんぎく'],family:'キク科',
+ mgmt:{germTemp:'15-25℃',growTemp:'15-25℃',harvestDays:'種まき後 春30-40日 / 秋30-50日',
+ sow:'好光性種子。土かけはごく薄く。最終株間15-20cm',fertilize:'苦土石灰100g/㎡(酸性土を嫌う)',harvest:'摘み取りは2節残して収穫すると次の芽が伸びる',note:'種袋:トーホク「中葉しゅんぎく」'}},
+{id:'v11',name:'ほうれん草',emoji:'🍃',color:'#166534',varieties:['やまと'],family:'ヒユ科',
+ mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'種まき後 30-50日(草丈20-25cm)',
+ sow:'深さ約1cmにすじまき。最終株間5cm位',fertilize:'苦土石灰150g/㎡(酸性土を強く嫌う)',note:'種袋:トーホク「日本ほうれん草 やまと」。気温が高いと発芽しにくい。冬の寒さに当たると一層おいしくなる'}},
+{id:'v12',name:'小松菜',emoji:'🌿',color:'#22c55e',varieties:['寒くても伸びる小松菜'],family:'アブラナ科',
+ mgmt:{germTemp:'20-30℃(地温)',growTemp:'15-25℃',harvestDays:'種まき後 夏まき22-30日 / 秋まき40-50日',
+ sow:'条間15cm・1cm間隔のすじまき。間引いて株間5cm',harvest:'草丈15-30cmで順次収穫',note:'種袋:サカタ「寒くても伸びる小松菜」。時期をずらしてまくと連続収穫できる'}},
+{id:'v13',name:'青梗菜',emoji:'🥬',color:'#059669',varieties:['緑菜'],family:'アブラナ科',
+ mgmt:{germTemp:'15-30℃',growTemp:'15-30℃',harvestDays:'種まき後 30-40日(草丈25cm位)',
+ sow:'深さ約1cmにすじまき。最終株間15cm',note:'種袋:トーホク「早どりチンゲンサイ 緑菜」。草丈10-15cmのミニサイズから収穫可。防虫ネット推奨'}},
+{id:'v14',name:'そら豆',emoji:'🫛',color:'#4d7c0f',varieties:['一寸そら豆'],family:'マメ科',
+ mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'種まき後 約180-210日(10月まき→翌5月頃)',
+ sow:'お歯黒を斜め下にして種まき。本葉2枚頃までに定植',note:'小苗(本葉2-3枚)で越冬させる。肥料過多に注意'}},
+{id:'v15',name:'エンドウ豆',emoji:'🫛',color:'#3f6212',varieties:['久留米実'],family:'マメ科',
+ mgmt:{germTemp:'15-20℃',growTemp:'15-20℃',harvestDays:'種まき後 約180-210日(秋まき→翌4-5月)',
+ note:'小苗で越冬。春に支柱・ネットで誘引。連作を強く嫌う(4-5年空ける)'}},
+{id:'v16',name:'一本葱',emoji:'🌱',color:'#0891b2',varieties:['一翠太','下仁田葱'],family:'ヒガンバナ科',
+ mgmt:{germTemp:'15-25℃',growTemp:'15-20℃',harvestDays:'定植後 60-90日',
+ transplant:'深さ20-30cmの溝に5cm間隔で植え、成長に応じて土寄せ',note:'土寄せの回数で軟白部の長さが決まる'}},
+{id:'v17',name:'ニンニク',emoji:'🧄',color:'#9333ea',varieties:['福地ホワイト'],family:'ヒガンバナ科',
+ mgmt:{germTemp:'15-20℃',growTemp:'10-20℃',harvestDays:'植付後 約240-270日(9-10月植え→翌5-6月)',
+ transplant:'りん片を尖った方を上に深さ5-6cmで植付(株間15cm)',note:'春にとう立ちした花芽(ニンニクの芽)は摘み取る'}},
+{id:'v18',name:'玉ねぎ',emoji:'🧅',color:'#b45309',varieties:[],family:'ヒガンバナ科',
+ mgmt:{germTemp:'15-20℃',growTemp:'12-20℃',harvestDays:'定植後 約180-200日(11月定植→翌5-6月)',
+ transplant:'苗の白い部分が隠れる程度の浅植え(株間12-15cm)',note:'葉が8割倒伏したら収穫適期'}}
+];
+const MGMT_FIELDS=[['germTemp','発芽適温'],['growTemp','生育適温'],['harvestDays','収穫までに要する日数'],
+ ['soil','土づくり'],['sow','種まき'],['transplant','定植・植付'],['fertilize','施肥'],['water','水やり'],
+ ['harvest','収穫'],['storage','保存'],['note','備考']];
+
+// ===================== 天気取得（Open-Meteo / 千葉県印西市戸神） =====================
+const DEFAULT_LOC={name:'千葉県印西市戸神',lat:35.788,lon:140.120};
+const WMO_MAP={0:'快晴',1:'晴',2:'晴時々曇',3:'曇',45:'霧',48:'霧',51:'霧雨',53:'霧雨',55:'霧雨',
+ 56:'霧雨',57:'霧雨',61:'小雨',63:'雨',65:'大雨',66:'氷雨',67:'氷雨',71:'小雪',73:'雪',75:'大雪',77:'雪',
+ 80:'にわか雨',81:'にわか雨',82:'激しい雨',85:'にわか雪',86:'にわか雪',95:'雷雨',96:'雷雨',99:'雷雨'};
+const DIR16=['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'];
+function getLoc(){
+  try{const s=JSON.parse(localStorage.getItem('yasai2_loc'));if(s&&s.lat&&s.lon)return s;}catch(e){}
+  return DEFAULT_LOC;
+}
+async function fetchWeatherFor(dateStr,timeFrom,timeTo){
+  const loc=getLoc();
+  const target=new Date(dateStr+'T00:00:00');
+  const today=new Date();today.setHours(0,0,0,0);
+  const diffDays=Math.round((today-target)/86400000);
+  const base=diffDays>5?'https://archive-api.open-meteo.com/v1/archive':'https://api.open-meteo.com/v1/forecast';
+  const url=`${base}?latitude=${loc.lat}&longitude=${loc.lon}&start_date=${dateStr}&end_date=${dateStr}`+
+    `&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Asia%2FTokyo`;
+  const res=await fetch(url);
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const j=await res.json();
+  const H=j.hourly;
+  if(!H||!H.time||!H.time.length)throw new Error('データなし');
+  let h1=9,h2=12;
+  if(timeFrom){h1=parseInt(timeFrom.split(':')[0],10);h2=h1+1;}
+  if(timeTo){h2=Math.max(h1+1,parseInt(timeTo.split(':')[0],10)+(timeTo.split(':')[1]>'00'?1:0));}
+  if(h2>23)h2=23; if(h1>23)h1=23;
+  const idx=[];for(let h=h1;h<=h2;h++){const i=H.time.findIndex(t=>t.endsWith('T'+String(h).padStart(2,'0')+':00'));if(i>=0&&H.temperature_2m[i]!=null)idx.push(i);}
+  if(!idx.length)throw new Error('対象時間のデータなし(未来すぎる可能性)');
+  const avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
+  const temp=Math.round(avg(idx.map(i=>H.temperature_2m[i])));
+  const wspd=Math.round(avg(idx.map(i=>H.wind_speed_10m[i])));
+  // 最頻の天気コード（同数なら悪い方）
+  const codes=idx.map(i=>H.weather_code[i]);
+  const freq={};codes.forEach(c=>freq[c]=(freq[c]||0)+1);
+  let code=codes[0],best=0;
+  Object.keys(freq).forEach(c=>{const n=freq[c];if(n>best||(n===best&&+c>+code)){best=n;code=+c;}});
+  // 風向: ベクトル平均
+  let sx=0,sy=0;idx.forEach(i=>{const r=H.wind_direction_10m[i]*Math.PI/180;sx+=Math.sin(r);sy+=Math.cos(r);});
+  let deg=Math.atan2(sx,sy)*180/Math.PI;if(deg<0)deg+=360;
+  const dir=DIR16[Math.round(deg/22.5)%16];
+  return {weather:WMO_MAP[code]||('コード'+code),wind:`${dir}${wspd}m`,temp:`${temp}℃`};
+}
+
+// ===================== 画像圧縮（長辺800px / JPEG65%・前回ルール継承） =====================
+function _compressImage(file,callback){
+  const MAX_PX=800,QUALITY=0.65;
+  const blobUrl=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{
+    URL.revokeObjectURL(blobUrl);
+    let w=img.width,h=img.height;
+    if(w>MAX_PX||h>MAX_PX){ if(w>=h){h=Math.round(h*MAX_PX/w);w=MAX_PX;} else {w=Math.round(w*MAX_PX/h);h=MAX_PX;} }
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    const result=canvas.toDataURL('image/jpeg',QUALITY);
+    canvas.width=0;canvas.height=0;
+    callback(result);
+  };
+  img.onerror=()=>{
+    URL.revokeObjectURL(blobUrl);
+    const reader=new FileReader();
+    reader.onload=ev=>callback(ev.target.result);
+    reader.onerror=()=>callback(null);
+    reader.readAsDataURL(file);
+  };
+  img.src=blobUrl;
+}
+
+// ===================== STATE =====================
+let S={view:'timeline',selVeg:null,detailTab:'info',tlDays:'90',editVegId:null};
+let D={vegetables:[],days:[],plans:[],harvests:[]};
+let idCounter=1000;
+const newId=p=>(p||'id')+(++idCounter)+(Date.now()%100000);
+// 入力フォームの編集状態
+let E=null;
+
+function _localDateStr(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function fmtMD(ds){const p=ds.split('-');return `${+p[1]}/${+p[2]}`;}
+function getVeg(id){return D.vegetables.find(v=>v.id===id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function workAct(w){return w.act==='自由入力'?(w.custom||'自由入力'):w.act;}
+function actColor(act){
+  if(!act)return'#6b7280';
+  if(/収穫/.test(act))return'#dc2626';
+  if(/定植|植付/.test(act))return'#16a34a';
+  if(/種まき|播種/.test(act))return'#15803d';
+  if(/施水|水やり/.test(act))return'#2563eb';
+  if(/施肥|追肥/.test(act))return'#ca8a04';
+  if(/仕立|誘引/.test(act))return'#ea580c';
+  if(/芽掻|間引|葉掻|剪定|摘果/.test(act))return'#9333ea';
+  if(/散布/.test(act))return'#7c3aed';
+  if(/人工授粉/.test(act))return'#ec4899';
+  if(/成長観測/.test(act))return'#0891b2';
+  if(/処分/.test(act))return'#78350f';
+  return'#6b7280';
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ===================== データ保存 =====================
+function _normalizeVeg(v){
+  if(!Array.isArray(v.varieties))v.varieties=[];
+  if(!v.mgmt||typeof v.mgmt!=='object')v.mgmt={};
+  MGMT_FIELDS.forEach(([k])=>{if(v.mgmt[k]==null)v.mgmt[k]='';});
+  if(v.family==null)v.family='';
+  if(v.emoji==null)v.emoji='🌱';
+  if(v.color==null)v.color='#3d7a3d';
+  return v;
+}
+function _normalizeDay(d){
+  if(!Array.isArray(d.fieldActs))d.fieldActs=[];
+  if(!Array.isArray(d.works))d.works=[];
+  d.works.forEach(w=>{if(!Array.isArray(w.photos))w.photos=w.photo?[w.photo]:[];});
+  return d;
+}
+function _dataWithoutPhotos(){
+  return {
+    vegetables:D.vegetables,
+    days:D.days.map(dd=>Object.assign({},dd,{works:(dd.works||[]).map(w=>{const c=Object.assign({},w);delete c.photos;delete c.photo;return c;})})),
+    plans:D.plans,
+    harvests:D.harvests
+  };
+}
+function _saveLocal(){
+  const hasCloud=!!localStorage.getItem('yasai2_fb');
+  try{
+    localStorage.setItem('yasai2_v1',JSON.stringify(hasCloud?_dataWithoutPhotos():D));
+  }catch(e){
+    try{localStorage.setItem('yasai2_v1',JSON.stringify(_dataWithoutPhotos()));}catch(e2){console.warn('local save failed',e2);}
+  }
+}
+function saveData(){_saveLocal();saveToCloud();}
+function loadData(){
+  const saved=localStorage.getItem('yasai2_v1');
+  if(saved){
+    try{
+      D=JSON.parse(saved);
+      if(!Array.isArray(D.vegetables))D.vegetables=[];
+      if(!Array.isArray(D.days))D.days=[];
+      if(!Array.isArray(D.plans))D.plans=[];
+      if(!Array.isArray(D.harvests))D.harvests=[];
+      D.vegetables.forEach(_normalizeVeg);
+      D.days.forEach(_normalizeDay);
+      return;
+    }catch(e){}
+  }
+  D={vegetables:VEG_SEED.map(v=>_normalizeVeg(JSON.parse(JSON.stringify(v)))),days:[],plans:[],harvests:[]};
+}
+
+// ===================== CLOUD SYNC (Firebase・前回方式を継承 / 保存先は yasai2/) =====================
+let FB_DB=null,FB_KEY=null,FB_LISTENER=null,FB_ERROR=null,FB_TIMEOUT=null;
+let _syncedPhotoIds=new Set(),_pendingPhotoDeletes=new Set(),_saveQueuedForConnect=false,_myRev=null;
+const DEFAULT_FB_CONFIG={
+  apiKey:"AIzaSyBF5UswvIXO1MKGbpv2vJrmFgsYS0UNSnU",
+  authDomain:"vegemane.firebaseapp.com",
+  databaseURL:"https://vegemane-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"vegemane",
+  storageBucket:"vegemane.firebasestorage.app",
+  messagingSenderId:"516654510928",
+  appId:"1:516654510928:web:5d84fea96669f0be17f255"
+};
+function updateSyncBadge(st){
+  const b=document.getElementById('sync-badge');
+  b.className='';
+  if(st==='ok'){b.classList.add('ok');b.textContent='☁ 同期中';}
+  else if(st==='error'){b.classList.add('error');b.textContent='⚠ エラー';}
+  else if(st==='connecting'){b.classList.add('connecting');b.textContent='接続中…';}
+  else b.textContent='未同期';
+}
+function loadCloudConfig(){
+  try{
+    const raw=localStorage.getItem('yasai2_fb');
+    if(!raw){updateSyncBadge('none');return;}
+    const saved=JSON.parse(raw);
+    if(saved.key){FB_KEY=saved.key;initFirebase(DEFAULT_FB_CONFIG);}
+    else updateSyncBadge('none');
+  }catch(e){updateSyncBadge('none');}
+}
+function _loadSDK(cb){
+  if(window.firebase&&window.firebase.database){cb();return;}
+  const s1=document.createElement('script');
+  s1.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+  s1.onerror=()=>updateSyncBadge('error');
+  s1.onload=()=>{
+    const s2=document.createElement('script');
+    s2.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+    s2.onerror=()=>updateSyncBadge('error');
+    s2.onload=cb;
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+function _collectLocalPhotos(){
+  const m={};
+  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{if(w.photos&&w.photos.length)m[w.id]=w.photos;}));
+  return m;
+}
+function _mergePhotos(photosObj){
+  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
+    if(photosObj[w.id])w.photos=photosObj[w.id];
+  }));
+}
+function initFirebase(config){
+  FB_ERROR=null;clearTimeout(FB_TIMEOUT);updateSyncBadge('connecting');
+  FB_TIMEOUT=setTimeout(()=>{
+    if(!FB_DB){FB_ERROR='タイムアウト：Firebaseに接続できませんでした。';updateSyncBadge('error');render();}
+  },15000);
+  _loadSDK(()=>{
+    const doInit=()=>{
+      try{
+        window.firebase.initializeApp(config);
+        FB_DB=window.firebase.database();
+        clearTimeout(FB_TIMEOUT);
+        FB_DB.ref('yasai2/'+FB_KEY).once('value').then(snap=>{
+          const d=snap.val();
+          if(d&&d.meta&&d.meta.vegetables){
+            const remote=d.meta;
+            const photosObj=d.photos||{};
+            // ローカルにしかない日次記録・予定・収穫を保持
+            const merge=(remoteArr,localArr)=>{
+              const ids=new Set((remoteArr||[]).map(x=>x.id));
+              return [...(remoteArr||[]),...(localArr||[]).filter(x=>!ids.has(x.id))];
+            };
+            const localDays=D.days,localPhotos=_collectLocalPhotos();
+            const hadLocalOnly=(localDays||[]).some(x=>!(remote.days||[]).find(r=>r.id===x.id))
+              ||(D.plans||[]).some(x=>!(remote.plans||[]).find(r=>r.id===x.id))
+              ||(D.harvests||[]).some(x=>!(remote.harvests||[]).find(r=>r.id===x.id));
+            D={
+              vegetables:remote.vegetables||[],
+              days:merge(remote.days,localDays),
+              plans:merge(remote.plans,D.plans),
+              harvests:merge(remote.harvests,D.harvests)
+            };
+            D.vegetables.forEach(_normalizeVeg);
+            D.days.forEach(_normalizeDay);
+            _mergePhotos(photosObj);
+            // Firebase未到達のローカル写真を復元
+            D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
+              if((!w.photos||!w.photos.length)&&localPhotos[w.id])w.photos=localPhotos[w.id];
+            }));
+            Object.keys(photosObj).forEach(id=>_syncedPhotoIds.add(id));
+            _saveLocal();
+            if(hadLocalOnly||_saveQueuedForConnect){_saveQueuedForConnect=false;setTimeout(()=>saveToCloud(),500);}
+          }else{
+            _saveQueuedForConnect=false;
+            saveToCloud();
+          }
+          FB_ERROR=null;updateSyncBadge('ok');
+          _startListener();
+          if(S.view!=='entry')render();else renderSidebar();
+        }).catch(err=>{
+          FB_ERROR='データ読み込みエラー：'+(err.message||err.code||String(err));
+          updateSyncBadge('error');
+          if(S.view!=='entry')render();
+        });
+      }catch(e){
+        clearTimeout(FB_TIMEOUT);
+        FB_ERROR='初期化エラー：'+(e.message||String(e));
+        updateSyncBadge('error');render();
+      }
+    };
+    try{
+      if(window.firebase.apps&&window.firebase.apps.length){
+        Promise.all(window.firebase.apps.map(a=>a.delete())).then(doInit).catch(doInit);
+      }else doInit();
+    }catch(e){doInit();}
+  });
+}
+function _startListener(){
+  if(!FB_DB||!FB_KEY)return;
+  if(FB_LISTENER)FB_DB.ref('yasai2/'+FB_KEY+'/meta').off('value',FB_LISTENER);
+  FB_LISTENER=FB_DB.ref('yasai2/'+FB_KEY+'/meta').on('value',snap=>{
+    const meta=snap.val();
+    if(!meta||!meta.vegetables)return;
+    if(meta.rev&&meta.rev===_myRev)return; // 自分の書き込みは無視
+    const photos=_collectLocalPhotos();
+    D={
+      vegetables:meta.vegetables||[],
+      days:meta.days||[],
+      plans:meta.plans||[],
+      harvests:meta.harvests||[]
+    };
+    D.vegetables.forEach(_normalizeVeg);
+    D.days.forEach(_normalizeDay);
+    _mergePhotos(photos);
+    _saveLocal();
+    if(S.view==='entry'){renderSidebar();}else{render();}
+  });
+}
+function saveToCloud(){
+  if(!FB_DB||!FB_KEY){
+    if(localStorage.getItem('yasai2_fb'))_saveQueuedForConnect=true;
+    return;
+  }
+  _myRev='r'+Date.now()+Math.random().toString(36).slice(2,7);
+  const meta=Object.assign({rev:_myRev,updatedAt:new Date().toISOString()},_dataWithoutPhotos());
+  FB_DB.ref('yasai2/'+FB_KEY+'/meta').set(JSON.parse(JSON.stringify(meta)))
+    .then(()=>{updateSyncBadge('ok');_syncPhotos();})
+    .catch(err=>{FB_ERROR='保存エラー：'+(err.message||String(err));updateSyncBadge('error');});
+}
+// 写真は1件ずつ順次送信（前回のタイムアウト対策を継承）
+function _syncPhotos(){
+  if(!FB_DB||!FB_KEY)return;
+  const all=_collectLocalPhotos();
+  const pending=Object.keys(all).filter(id=>!_syncedPhotoIds.has(id));
+  const dels=[..._pendingPhotoDeletes];
+  const next=()=>{
+    if(dels.length){
+      const id=dels.shift();
+      _pendingPhotoDeletes.delete(id);
+      FB_DB.ref('yasai2/'+FB_KEY+'/photos/'+id).remove().then(next).catch(next);
+      return;
+    }
+    if(!pending.length)return;
+    const id=pending.shift();
+    FB_DB.ref('yasai2/'+FB_KEY+'/photos/'+id).set(all[id])
+      .then(()=>{_syncedPhotoIds.add(id);next();})
+      .catch(err=>{console.warn('photo sync failed',id,err);next();});
+  };
+  next();
+}
+
+// ===================== RENDER =====================
+function render(){
+  renderSidebar();
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.v===S.view));
+  const main=document.getElementById('main');
+  if(S.view==='timeline')renderTimeline(main);
+  else if(S.view==='detail')renderDetail(main);
+  else if(S.view==='entry')renderEntry(main);
+  else if(S.view==='veg-form')renderVegForm(main);
+  else if(S.view==='settings')renderSettings(main);
+}
+function setView(v){
+  S.view=v;
+  if(v==='entry'&&!E)newEntry();
+  render();
+}
+function renderSidebar(){
+  const el=document.getElementById('veg-list');
+  el.innerHTML=D.vegetables.map(v=>`
+    <div class="veg-item ${S.selVeg===v.id&&S.view==='detail'?'active':''}" onclick="selectVeg('${v.id}')">
+      <span class="veg-dot" style="background:${v.color}"></span>
+      <span>${v.emoji}</span><span class="veg-name">${esc(v.name)}</span>
+    </div>`).join('');
+}
+function selectVeg(id){S.selVeg=id;S.view='detail';render();}
+
+// ---------- タイムライン（一覧） ----------
+function renderTimeline(main){
+  const today=_localDateStr(new Date());
+  // 期間
+  let from;
+  const allDates=[...D.days.map(d=>d.date),...D.plans.map(p=>p.date),...D.harvests.map(h=>h.date)].filter(Boolean).sort();
+  if(S.tlDays==='all'&&allDates.length)from=allDates[0];
+  else{const d=new Date();d.setDate(d.getDate()-(+S.tlDays||90));from=_localDateStr(d);}
+  let to=today;
+  const maxPlan=D.plans.map(p=>p.date).sort().pop();
+  if(maxPlan&&maxPlan>to)to=maxPlan;
+  {const d=new Date(to+'T00:00:00');d.setDate(d.getDate()+7);to=_localDateStr(d);}
+  const dates=[];
+  for(let d=new Date(from+'T00:00:00');;d.setDate(d.getDate()+1)){
+    const ds=_localDateStr(d);dates.push(ds);
+    if(ds>=to||dates.length>500)break;
+  }
+  // 日付→データ索引
+  const dayByDate={};D.days.forEach(dd=>{(dayByDate[dd.date]=dayByDate[dd.date]||[]).push(dd);});
+  const worksBy={},fieldBy={};
+  D.days.forEach(dd=>{
+    if((dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom)(fieldBy[dd.date]=fieldBy[dd.date]||[]).push(dd);
+    (dd.works||[]).forEach(w=>{(worksBy[dd.date+'_'+w.vid]=worksBy[dd.date+'_'+w.vid]||[]).push(w);});
+  });
+  const plansBy={};D.plans.forEach(p=>{(plansBy[p.date+'_'+p.vid]=plansBy[p.date+'_'+p.vid]||[]).push(p);});
+  const harvBy={};D.harvests.forEach(h=>{(harvBy[h.date+'_'+h.vid]=harvBy[h.date+'_'+h.vid]||[]).push(h);});
+
+  let html=`<div id="timeline-wrap">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <h2>📅 栽培タイムライン</h2>
+      <span style="flex:1"></span>
+      <select style="width:auto" onchange="S.tlDays=this.value;render()">
+        ${[['90','90日'],['180','180日'],['365','1年'],['all','全期間']].map(([v,l])=>`<option value="${v}" ${S.tlDays===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="newEntry();setView('entry')">✏️ 今日の記録</button>
+    </div>
+    <div class="tl-scroll"><table class="tl-table"><thead><tr>
+      <th class="tl-head-veg">作物＼日付</th>
+      ${dates.map(ds=>{
+        const d=new Date(ds+'T00:00:00');
+        const wd=d.getDay();
+        return `<th class="tl-date-head ${ds===today?'today':''} ${wd===0||wd===6?'weekend':''}" onclick="openDayPopup('${ds}',null)">${fmtMD(ds)}<br>${'日月火水木金土'[wd]}</th>`;
+      }).join('')}
+    </tr></thead><tbody>`;
+  // 畑全体行
+  html+=`<tr><td class="tl-veg-col">🏞 畑全体</td>${dates.map(ds=>{
+    const has=fieldBy[ds];
+    return `<td class="tl-cell ${ds===today?'today':''} ${has?'has-data':''}" onclick="openDayPopup('${ds}',null)">${has?'<span class="tl-dot" style="background:#78350f"></span>':''}</td>`;
+  }).join('')}</tr>`;
+  // 野菜行
+  D.vegetables.forEach(v=>{
+    html+=`<tr><td class="tl-veg-col"><button class="tl-veg-btn" onclick="selectVeg('${v.id}')">
+      <span class="veg-dot" style="background:${v.color}"></span>${v.emoji}${esc(v.name)}</button></td>`;
+    html+=dates.map(ds=>{
+      const ws=worksBy[ds+'_'+v.id]||[];
+      const ps=plansBy[ds+'_'+v.id]||[];
+      const hs=harvBy[ds+'_'+v.id]||[];
+      const dots=[
+        ...ws.slice(0,3).map(w=>`<span class="tl-dot" style="background:${actColor(workAct(w))}"></span>`),
+        ...(hs.length&&!ws.some(w=>/収穫/.test(workAct(w)))?['<span class="tl-dot" style="background:#dc2626"></span>']:[]),
+        ...ps.slice(0,2).map(()=>'<span class="tl-dot plan"></span>')
+      ].join('');
+      return `<td class="tl-cell ${ds===today?'today':''} ${dots?'has-data':''}" onclick="openDayPopup('${ds}','${v.id}')">${dots}</td>`;
+    }).join('');
+    html+='</tr>';
+  });
+  html+=`</tbody></table></div>
+  <div style="font-size:11px;color:var(--muted);margin-top:6px">
+    ●実施作業（色は作業種別） <span class="tl-dot plan" style="vertical-align:middle"></span>予定作業 ／ セルをクリックで詳細・編集
+  </div></div>`;
+  main.innerHTML=html;
+  // 今日の列が見えるように自動スクロール
+  const sc=main.querySelector('.tl-scroll'),th=main.querySelector('.tl-date-head.today');
+  if(sc&&th)sc.scrollLeft=Math.max(0,th.offsetLeft-sc.clientWidth+180);
+}
+
+// ---------- 日別ポップアップ ----------
+function openDayPopup(ds,vid){
+  const days=D.days.filter(d=>d.date===ds);
+  const plans=D.plans.filter(p=>p.date===ds&&(!vid||p.vid===vid));
+  const harvests=D.harvests.filter(h=>h.date===ds&&(!vid||h.vid===vid));
+  let body='';
+  days.forEach(dd=>{
+    const works=(dd.works||[]).filter(w=>!vid||w.vid===vid);
+    const env=[dd.weather,dd.wind,dd.temp].filter(Boolean).join(' / ');
+    body+=`<div class="popup-entry">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b>${dd.timeFrom||''}${dd.timeFrom||dd.timeTo?'〜':''}${dd.timeTo||''} ${env?'　'+esc(env):''}</b>
+        <span>
+          <button class="btn-sm" onclick="editEntry('${dd.id}')">編集</button>
+          <button class="btn-sm" style="background:#dc2626" onclick="deleteDay('${dd.id}')">削除</button>
+        </span>
+      </div>
+      ${(dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom?`<div style="margin-top:4px">🏞 畑全体: ${esc([...(dd.fieldActs||[]),dd.fieldCustom].filter(Boolean).join('・'))}</div>`:''}
+      ${works.map(w=>{
+        const v=getVeg(w.vid);
+        return `<div style="margin-top:4px">
+          <span class="veg-dot" style="background:${v?v.color:'#999'};display:inline-block"></span>
+          ${v?esc(v.name):'?'} <b style="color:${actColor(workAct(w))}">${esc(workAct(w))}</b>
+          ${w.memo?`<span style="color:var(--muted);font-size:11px"> ${esc(w.memo)}</span>`:''}
+          ${w.photos&&w.photos.length?`<div class="photo-thumbs">${w.photos.map((p,i)=>`<img class="photo-thumb" src="${p}" onclick="openLightbox('${w.id}',${i})">`).join('')}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+  if(harvests.length){
+    body+=`<div class="popup-entry"><b>🧺 収穫</b>${harvests.map(h=>{
+      const v=getVeg(h.vid);
+      return `<div style="margin-top:3px">${v?esc(v.name):'?'} ${h.variety?esc(h.variety):''} × ${h.count}個</div>`;
+    }).join('')}</div>`;
+  }
+  if(plans.length){
+    body+=`<div class="popup-entry"><b>📋 予定作業</b>${plans.map(p=>{
+      const v=getVeg(p.vid);
+      return `<div style="margin-top:3px"><span class="badge badge-plan">予定</span> ${v?esc(v.name):'?'} ${esc(p.act==='自由入力'?(p.custom||''):p.act)}
+        <button class="btn-sm" style="background:#dc2626;margin-left:6px" onclick="deletePlan('${p.id}')">削除</button></div>`;
+    }).join('')}</div>`;
+  }
+  if(!body)body=`<div style="color:var(--muted)">記録はありません</div>`;
+  const vname=vid?(getVeg(vid)||{}).name:null;
+  showPopup(`${ds} (${'日月火水木金土'[new Date(ds+'T00:00:00').getDay()]}) ${vname?'｜'+esc(vname):''}`,
+    body+`<div style="margin-top:10px;text-align:right">
+      <button class="btn btn-primary" onclick="closePopup();newEntryFor('${ds}');setView('entry')">✏️ この日の記録を入力</button>
+    </div>`);
+}
+function showPopup(title,bodyHtml){
+  document.getElementById('popup-box').innerHTML=`
+    <div class="popup-hdr"><b>${title}</b><button onclick="closePopup()" style="font-size:16px">✕</button></div>
+    <div class="popup-body">${bodyHtml}</div>`;
+  document.getElementById('popup').classList.add('show');
+}
+function closePopup(){document.getElementById('popup').classList.remove('show');}
+document.getElementById('popup').addEventListener('click',e=>{if(e.target.id==='popup')closePopup();});
+
+// ---------- ライトボックス ----------
+let _lb={photos:[],idx:0};
+function openLightbox(workId,idx){
+  let photos=null;
+  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{if(w.id===workId)photos=w.photos;}));
+  if(!photos||!photos.length)return;
+  _lb={photos,idx:idx||0};
+  _lbShow();
+}
+function _lbShow(){
+  document.getElementById('lb-img').src=_lb.photos[_lb.idx];
+  document.getElementById('lb-nav').textContent=`${_lb.idx+1} / ${_lb.photos.length}（クリックで次へ）`;
+  document.getElementById('lightbox').classList.add('show');
+}
+document.getElementById('lightbox').addEventListener('click',e=>{
+  if(_lb.photos.length>1&&e.target.id==='lb-img'){_lb.idx=(_lb.idx+1)%_lb.photos.length;_lbShow();return;}
+  document.getElementById('lightbox').classList.remove('show');
+});
+
+// ---------- 野菜詳細 ----------
+function renderDetail(main){
+  const v=getVeg(S.selVeg)||D.vegetables[0];
+  if(!v){main.innerHTML='<div class="card">左の一覧から野菜を選択してください</div>';return;}
+  S.selVeg=v.id;
+  const tabs=[['info','基本情報'],['sched','スケジュール'],['harvest','収穫数']];
+  let html=`<div id="detail-wrap">
+    <div class="veg-header">
+      <div class="veg-icon" style="background:${v.color}22;border:2px solid ${v.color}">${v.emoji}</div>
+      <div style="flex:1">
+        <h2>${esc(v.name)}</h2>
+        <div class="variety-tags">${(v.varieties||[]).map(x=>`<span class="vtag">${esc(x)}</span>`).join('')||'<span style="font-size:11px;color:var(--muted)">品種未登録</span>'}</div>
+      </div>
+      <button class="btn btn-outline" onclick="gotoVegForm('${v.id}')">✏️ 編集</button>
+    </div>
+    <div class="tab-bar">${tabs.map(([k,l])=>`<button class="tab-btn ${S.detailTab===k?'active':''}" onclick="S.detailTab='${k}';render()">${l}</button>`).join('')}</div>`;
+  if(S.detailTab==='info')html+=renderInfoTab(v);
+  else if(S.detailTab==='sched')html+=renderSchedTab(v);
+  else html+=renderHarvestTab(v);
+  html+='</div>';
+  main.innerHTML=html;
+}
+function renderInfoTab(v){
+  const m=v.mgmt||{};
+  let html=`<div class="section-card">
+    <div class="section-title">🌡 栽培管理メモ</div>
+    <div class="temp-grid">
+      <div class="temp-box"><div class="t-label">発芽適温</div><div class="t-val">${esc(m.germTemp||'—')}</div></div>
+      <div class="temp-box"><div class="t-label">生育適温</div><div class="t-val">${esc(m.growTemp||'—')}</div></div>
+      <div class="temp-box"><div class="t-label">収穫までに要する日数</div><div class="t-val">${esc(m.harvestDays||'—')}</div></div>
+    </div>
+    <div class="field-group">
+      ${MGMT_FIELDS.slice(3).filter(([k])=>m[k]).map(([k,l])=>`<div class="field-item full"><label>${l}</label><div class="val">${esc(m[k])}</div></div>`).join('')||'<div style="color:var(--muted);font-size:12px">メモはまだありません（編集から追加できます）</div>'}
+    </div>
+  </div>
+  <div class="section-card">
+    <div class="section-title">📖 基本情報</div>
+    <div class="field-group">
+      <div class="field-item"><label>科</label><div class="val">${esc(v.family||'—')}</div></div>
+      <div class="field-item"><label>品種</label><div class="val">${esc((v.varieties||[]).join('、')||'—')}</div></div>
+    </div>
+  </div>`;
+  return html;
+}
+function renderSchedTab(v){
+  // 実施（日次記録から抽出）＋予定＋収穫
+  const items=[];
+  D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
+    if(w.vid===v.id)items.push({type:'work',date:dd.date,day:dd,w});
+  }));
+  D.plans.forEach(p=>{if(p.vid===v.id)items.push({type:'plan',date:p.date,p});});
+  D.harvests.forEach(h=>{if(h.vid===v.id)items.push({type:'harvest',date:h.date,h});});
+  items.sort((a,b)=>b.date.localeCompare(a.date));
+  if(!items.length)return `<div class="section-card" style="color:var(--muted)">記録はまだありません</div>`;
+  return items.map(it=>{
+    if(it.type==='work'){
+      const dd=it.day,w=it.w;
+      const env=[dd.weather,dd.wind,dd.temp].filter(Boolean).join(' / ');
+      return `<div class="sched-item">
+        <div class="left"><div class="date">${fmtMD(it.date)}</div><div class="time">${dd.timeFrom||''}${dd.timeFrom||dd.timeTo?'〜':''}${dd.timeTo||''}</div></div>
+        <div class="right">
+          <div class="act" style="color:${actColor(workAct(w))}">${esc(workAct(w))} <span class="badge badge-actual">実施</span></div>
+          ${env?`<div class="memo">🌤 ${esc(env)}</div>`:''}
+          ${w.memo?`<div class="memo">${esc(w.memo)}</div>`:''}
+          ${w.photos&&w.photos.length?`<div class="photo-thumbs">${w.photos.map((p,i)=>`<img class="photo-thumb" src="${p}" onclick="openLightbox('${w.id}',${i})">`).join('')}</div>`:''}
+        </div>
+      </div>`;
+    }
+    if(it.type==='plan'){
+      const p=it.p;
+      return `<div class="sched-item" style="background:#f8fafc">
+        <div class="left"><div class="date">${fmtMD(it.date)}</div></div>
+        <div class="right"><div class="act" style="color:#1d4ed8">${esc(p.act==='自由入力'?(p.custom||''):p.act)} <span class="badge badge-plan">予定</span></div></div>
+      </div>`;
+    }
+    const h=it.h;
+    return `<div class="sched-item" style="background:#fff7f7">
+      <div class="left"><div class="date">${fmtMD(it.date)}</div></div>
+      <div class="right"><div class="act" style="color:#dc2626">収穫 <span class="badge badge-harvest">${esc(h.variety||'')} × ${h.count}個</span></div></div>
+    </div>`;
+  }).join('');
+}
+function renderHarvestTab(v){
+  const hs=D.harvests.filter(h=>h.vid===v.id).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!hs.length)return `<div class="section-card" style="color:var(--muted)">収穫記録はまだありません</div>`;
+  // 品種別集計
+  const byVar={};let total=0;
+  hs.forEach(h=>{const k=h.variety||'(品種未指定)';byVar[k]=(byVar[k]||0)+(+h.count||0);total+=(+h.count||0);});
+  let html=`<div class="section-card">
+    <div class="section-title">🧺 品種別収穫合計</div>
+    <table class="harvest-table">
+      <tr><th>品種</th><th style="text-align:right">合計</th></tr>
+      ${Object.entries(byVar).map(([k,n])=>`<tr><td>${esc(k)}</td><td style="text-align:right">${n}個</td></tr>`).join('')}
+      <tr class="harvest-total"><td>総計</td><td style="text-align:right">${total}個</td></tr>
+    </table>
+  </div>
+  <div class="section-card">
+    <div class="section-title">収穫履歴</div>
+    <table class="harvest-table">
+      <tr><th>日付</th><th>品種</th><th style="text-align:right">個数</th></tr>
+      ${hs.map(h=>`<tr><td>${h.date}</td><td>${esc(h.variety||'—')}</td><td style="text-align:right">${h.count}</td></tr>`).join('')}
+    </table>
+  </div>`;
+  return html;
+}
+
+// ---------- 統一入力フォーム ----------
+function newEntry(){newEntryFor(_localDateStr(new Date()));}
+function newEntryFor(ds){
+  E={id:null,date:ds,timeFrom:'',timeTo:'',weather:'',wind:'',temp:'',
+     fieldActs:[],fieldCustom:'',
+     works:[{id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]}],
+     plans:[],harvests:[]};
+}
+function editEntry(dayId){
+  const dd=D.days.find(x=>x.id===dayId);
+  if(!dd)return;
+  closePopup();
+  E={id:dd.id,date:dd.date,timeFrom:dd.timeFrom||'',timeTo:dd.timeTo||'',
+     weather:dd.weather||'',wind:dd.wind||'',temp:dd.temp||'',
+     fieldActs:[...(dd.fieldActs||[])],fieldCustom:dd.fieldCustom||'',
+     works:(dd.works||[]).map(w=>({id:w.id,vid:w.vid,act:w.act,custom:w.custom||'',memo:w.memo||'',photos:[...(w.photos||[])]})),
+     plans:D.plans.filter(p=>p.src===dd.id).map(p=>({date:p.date,vid:p.vid,act:p.act,custom:p.custom||''})),
+     harvests:D.harvests.filter(h=>h.src===dd.id).map(h=>({vid:h.vid,variety:h.variety||'',count:h.count}))};
+  if(!E.works.length)E.works.push({id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]});
+  setView('entry');
+}
+function deleteDay(dayId){
+  const dd=D.days.find(x=>x.id===dayId);
+  if(!dd)return;
+  if(!confirm(dd.date+' の記録を削除しますか？（この日の予定・収穫記録も削除されます）'))return;
+  (dd.works||[]).forEach(w=>{if(w.photos&&w.photos.length){_pendingPhotoDeletes.add(w.id);_syncedPhotoIds.delete(w.id);}});
+  D.days=D.days.filter(x=>x.id!==dayId);
+  D.plans=D.plans.filter(p=>p.src!==dayId);
+  D.harvests=D.harvests.filter(h=>h.src!==dayId);
+  saveData();closePopup();render();toast('削除しました');
+}
+function deletePlan(pid){
+  D.plans=D.plans.filter(p=>p.id!==pid);
+  saveData();closePopup();render();toast('予定を削除しました');
+}
+function vegOptions(sel){
+  return '<option value="">作物を選択</option>'+D.vegetables.map(v=>`<option value="${v.id}" ${sel===v.id?'selected':''}>${v.emoji}${esc(v.name)}</option>`).join('');
+}
+function actOptions(sel){
+  return '<option value="">作業を選択</option>'+OPT_C.map(a=>`<option ${sel===a?'selected':''}>${a}</option>`).join('');
+}
+function varietyOptions(vid,sel){
+  const v=getVeg(vid);
+  const vars=v?(v.varieties||[]):[];
+  return '<option value="">品種を選択</option>'+vars.map(x=>`<option ${sel===x?'selected':''}>${esc(x)}</option>`).join('')+`<option value="__free__" ${sel==='__free__'?'selected':''}>自由入力</option>`;
+}
+function renderEntry(main){
+  if(!E)newEntry();
+  const dayRecs=[...D.days].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  main.innerHTML=`<div id="entry-wrap">
+    <h2 style="margin-bottom:8px">✏️ ${E.id?'記録の編集':'記録入力'}（1日分をまとめて入力）</h2>
+
+    <div class="entry-section">
+      <div class="sec-title">１．日時・環境</div>
+      <div class="form-row-3">
+        <div><label>日付</label><input type="date" value="${E.date}" onchange="E.date=this.value"></div>
+        <div><label>開始時間</label><input type="time" value="${E.timeFrom}" onchange="E.timeFrom=this.value"></div>
+        <div><label>終了時間</label><input type="time" value="${E.timeTo}" onchange="E.timeTo=this.value"></div>
+      </div>
+      <div class="form-row-3" style="margin-top:4px">
+        <div><label>天気</label>
+          <input list="wx-list" id="e-weather" value="${esc(E.weather)}" placeholder="例: 快晴" onchange="E.weather=this.value">
+          <datalist id="wx-list">${WEATHER_OPTS.map(w=>`<option value="${w}">`).join('')}</datalist>
+        </div>
+        <div><label>風</label><input id="e-wind" value="${esc(E.wind)}" placeholder="例: 南東2m" onchange="E.wind=this.value"></div>
+        <div><label>気温</label><input id="e-temp" value="${esc(E.temp)}" placeholder="例: 25℃" onchange="E.temp=this.value"></div>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <button class="wx-btn" id="wx-fetch" onclick="fetchWeatherBtn()">🌤 天気を自動取得</button>
+        <span style="font-size:11px;color:var(--muted)">${esc(getLoc().name)}の気象データ(Open-Meteo)から日付・時間帯で取得</span>
+      </div>
+    </div>
+
+    <div class="entry-section">
+      <div class="sec-title">２．実施作業</div>
+      <label>実施作業１：畑全体</label>
+      <div class="act-check-grid">
+        ${OPT_A.map(a=>`<label class="act-check-label ${E.fieldActs.includes(a)?'checked':''}">
+          <input type="checkbox" ${E.fieldActs.includes(a)?'checked':''} onchange="toggleFieldAct('${a}',this.checked)">${a}</label>`).join('')}
+      </div>
+      <input style="margin-top:6px" placeholder="自由入力（その他の畑全体作業）" value="${esc(E.fieldCustom)}" onchange="E.fieldCustom=this.value">
+      <label style="margin-top:12px">実施作業２：作物ごとの作業（最大20行・写真付き）</label>
+      <div id="work-rows">${E.works.map((w,i)=>workRowHtml(w,i)).join('')}</div>
+      <button class="photo-add-btn" onclick="addWorkRow()" ${E.works.length>=20?'disabled':''}>＋ 作物の作業を追加（${E.works.length}/20）</button>
+    </div>
+
+    <div class="entry-section">
+      <div class="sec-title">３．予定作業</div>
+      <div id="plan-rows">${E.plans.map((p,i)=>planRowHtml(p,i)).join('')||'<div style="font-size:11px;color:var(--muted)">予定はありません</div>'}</div>
+      <button class="photo-add-btn" onclick="addPlanRow()">＋ 予定作業を追加</button>
+    </div>
+
+    <div class="entry-section">
+      <div class="sec-title">４．収穫</div>
+      <div id="harvest-rows">${E.harvests.map((h,i)=>harvestRowHtml(h,i)).join('')||'<div style="font-size:11px;color:var(--muted)">収穫はありません</div>'}</div>
+      <button class="photo-add-btn" onclick="addHarvestRow()">＋ 収穫を追加</button>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="saveEntry()">💾 保存する</button>
+      <button class="btn btn-outline" onclick="newEntry();render()">クリア</button>
+    </div>
+
+    <div class="entry-section" style="margin-top:16px">
+      <div class="sec-title" style="background:var(--muted)">🗂 最近の記録（クリックで編集）</div>
+      ${dayRecs.map(dd=>{
+        const n=(dd.works||[]).length;
+        const env=[dd.weather,dd.temp].filter(Boolean).join('/');
+        return `<div class="day-list-item">
+          <span style="cursor:pointer;flex:1" onclick="editEntry('${dd.id}')">📅 ${dd.date}　${env?esc(env)+'　':''}作業${n}件</span>
+          <button class="btn-sm" onclick="editEntry('${dd.id}')">編集</button>
+        </div>`;
+      }).join('')||'<div style="color:var(--muted);font-size:12px">まだ記録がありません</div>'}
+    </div>
+  </div>`;
+}
+function workRowHtml(w,i){
+  return `<div class="work-row">
+    <div class="work-row-head">
+      <div class="fi"><label>作物名</label><select onchange="E.works[${i}].vid=this.value">${vegOptions(w.vid)}</select></div>
+      <div class="fi"><label>作業</label><select onchange="E.works[${i}].act=this.value;renderEntryKeep()">${actOptions(w.act)}</select></div>
+      <button class="row-del" title="この行を削除" onclick="removeWorkRow(${i})">🗑</button>
+    </div>
+    ${w.act==='自由入力'?`<input style="margin-top:6px" placeholder="作業内容を入力" value="${esc(w.custom)}" onchange="E.works[${i}].custom=this.value">`:''}
+    <input style="margin-top:6px" placeholder="メモ（任意）" value="${esc(w.memo)}" onchange="E.works[${i}].memo=this.value">
+    <div class="photo-thumbs">
+      ${(w.photos||[]).map((p,pi)=>`<div class="photo-item"><img src="${p}"><button class="photo-del" onclick="removeWorkPhoto(${i},${pi})">✕</button></div>`).join('')}
+    </div>
+    <button class="photo-add-btn" onclick="pickWorkPhoto(${i})" ${(w.photos||[]).length>=4?'disabled':''}>📷 写真を追加（${(w.photos||[]).length}/4）</button>
+  </div>`;
+}
+function planRowHtml(p,i){
+  return `<div class="work-row"><div class="work-row-head">
+    <div class="fi"><label>日付</label><input type="date" value="${p.date||''}" onchange="E.plans[${i}].date=this.value"></div>
+    <div class="fi"><label>作物名</label><select onchange="E.plans[${i}].vid=this.value">${vegOptions(p.vid)}</select></div>
+    <div class="fi"><label>作業</label><select onchange="E.plans[${i}].act=this.value;renderEntryKeep()">${actOptions(p.act)}</select></div>
+    <button class="row-del" onclick="E.plans.splice(${i},1);renderEntryKeep()">🗑</button>
+  </div>
+  ${p.act==='自由入力'?`<input style="margin-top:6px" placeholder="作業内容を入力" value="${esc(p.custom)}" onchange="E.plans[${i}].custom=this.value">`:''}
+  </div>`;
+}
+function harvestRowHtml(h,i){
+  const v=getVeg(h.vid);
+  const inList=v&&(v.varieties||[]).includes(h.variety);
+  const selVal=h.variety&&!inList?'__free__':h.variety;
+  return `<div class="work-row"><div class="work-row-head">
+    <div class="fi"><label>作物名</label><select onchange="E.harvests[${i}].vid=this.value;E.harvests[${i}].variety='';renderEntryKeep()">${vegOptions(h.vid)}</select></div>
+    <div class="fi"><label>品種</label><select onchange="E.harvests[${i}].variety=this.value;renderEntryKeep()">${varietyOptions(h.vid,selVal)}</select></div>
+    <div class="fi" style="max-width:90px"><label>個数</label><input type="number" min="0" value="${h.count!=null?h.count:''}" onchange="E.harvests[${i}].count=this.value"></div>
+    <button class="row-del" onclick="E.harvests.splice(${i},1);renderEntryKeep()">🗑</button>
+  </div>
+  ${selVal==='__free__'?`<input style="margin-top:6px" placeholder="品種名を入力" value="${esc(h.varietyFree||'')}" onchange="E.harvests[${i}].varietyFree=this.value">`:''}
+  </div>`;
+}
+function renderEntryKeep(){renderEntry(document.getElementById('main'));}
+function toggleFieldAct(a,on){
+  if(on){if(!E.fieldActs.includes(a))E.fieldActs.push(a);}
+  else E.fieldActs=E.fieldActs.filter(x=>x!==a);
+  renderEntryKeep();
+}
+function addWorkRow(){
+  if(E.works.length>=20)return;
+  E.works.push({id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]});
+  renderEntryKeep();
+}
+function removeWorkRow(i){
+  const w=E.works[i];
+  if(w&&(w.photos||[]).length&&!confirm('写真付きの行です。削除しますか？'))return;
+  E.works.splice(i,1);
+  if(!E.works.length)E.works.push({id:newId('w'),vid:'',act:'',custom:'',memo:'',photos:[]});
+  renderEntryKeep();
+}
+function removeWorkPhoto(i,pi){E.works[i].photos.splice(pi,1);renderEntryKeep();}
+function pickWorkPhoto(i){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=()=>{
+    const files=[...inp.files].slice(0,4-(E.works[i].photos||[]).length);
+    let remain=files.length;
+    if(!remain)return;
+    toast('写真を圧縮中…');
+    files.forEach(f=>_compressImage(f,b64=>{
+      if(b64)E.works[i].photos.push(b64);
+      if(--remain===0)renderEntryKeep();
+    }));
+  };
+  inp.click();
+}
+function addPlanRow(){E.plans.push({date:E.date,vid:'',act:'',custom:''});renderEntryKeep();}
+function addHarvestRow(){E.harvests.push({vid:'',variety:'',varietyFree:'',count:''});renderEntryKeep();}
+async function fetchWeatherBtn(){
+  const btn=document.getElementById('wx-fetch');
+  btn.disabled=true;btn.textContent='取得中…';
+  try{
+    const r=await fetchWeatherFor(E.date,E.timeFrom,E.timeTo);
+    E.weather=r.weather;E.wind=r.wind;E.temp=r.temp;
+    document.getElementById('e-weather').value=r.weather;
+    document.getElementById('e-wind').value=r.wind;
+    document.getElementById('e-temp').value=r.temp;
+    toast(`取得しました: ${r.weather} / ${r.wind} / ${r.temp}`);
+  }catch(err){
+    toast('天気を取得できませんでした: '+(err.message||err));
+  }
+  btn.disabled=false;btn.textContent='🌤 天気を自動取得';
+}
+function saveEntry(){
+  if(!E.date){toast('日付を入力してください');return;}
+  const works=E.works.filter(w=>w.vid&&(w.act||w.custom||(w.photos||[]).length));
+  const plans=E.plans.filter(p=>p.date&&p.vid&&p.act);
+  const harvests=E.harvests.filter(h=>h.vid&&(+h.count>0));
+  const hasField=E.fieldActs.length||E.fieldCustom.trim();
+  const hasEnv=E.weather||E.wind||E.temp||E.timeFrom||E.timeTo;
+  if(!works.length&&!plans.length&&!harvests.length&&!hasField&&!hasEnv){toast('入力内容がありません');return;}
+  let dayId=E.id;
+  const dayObj={
+    id:dayId||newId('d'),date:E.date,timeFrom:E.timeFrom,timeTo:E.timeTo,
+    weather:E.weather,wind:E.wind,temp:E.temp,
+    fieldActs:[...E.fieldActs],fieldCustom:E.fieldCustom.trim(),
+    works:works.map(w=>({id:w.id,vid:w.vid,act:w.act,custom:(w.custom||'').trim(),memo:(w.memo||'').trim(),photos:w.photos||[]}))
+  };
+  dayId=dayObj.id;
+  if(E.id){
+    const idx=D.days.findIndex(x=>x.id===E.id);
+    // 削除された作業行の写真をクラウドからも削除
+    if(idx>=0){
+      const oldIds=new Set((D.days[idx].works||[]).filter(w=>(w.photos||[]).length).map(w=>w.id));
+      const newIds=new Set(dayObj.works.map(w=>w.id));
+      oldIds.forEach(id=>{if(!newIds.has(id)){_pendingPhotoDeletes.add(id);_syncedPhotoIds.delete(id);}});
+      D.days[idx]=dayObj;
+    }else D.days.push(dayObj);
+    D.plans=D.plans.filter(p=>p.src!==E.id);
+    D.harvests=D.harvests.filter(h=>h.src!==E.id);
+  }else{
+    D.days.push(dayObj);
+  }
+  // 写真が変わった行は再送信対象にする
+  dayObj.works.forEach(w=>{_syncedPhotoIds.delete(w.id);if(!(w.photos||[]).length)_syncedPhotoIds.add(w.id);});
+  plans.forEach(p=>D.plans.push({id:newId('p'),src:dayId,date:p.date,vid:p.vid,act:p.act,custom:(p.custom||'').trim()}));
+  harvests.forEach(h=>{
+    const variety=h.variety==='__free__'?(h.varietyFree||'').trim():h.variety;
+    D.harvests.push({id:newId('h'),src:dayId,date:E.date,vid:h.vid,variety,count:+h.count});
+  });
+  D.days.sort((a,b)=>a.date.localeCompare(b.date));
+  saveData();
+  E=null;
+  S.view='timeline';
+  render();
+  toast('保存しました');
+}
+
+// ---------- 野菜 追加/編集フォーム ----------
+function gotoVegForm(id){S.editVegId=id;S.view='veg-form';render();}
+function renderVegForm(main){
+  const v=S.editVegId?getVeg(S.editVegId):null;
+  const m=(v&&v.mgmt)||{};
+  main.innerHTML=`<div id="form-wrap"><div class="card">
+    <h2>${v?'🥬 野菜の編集':'🥬 野菜の追加'}</h2>
+    <div class="form-row-2">
+      <div><label>名前 *</label><input id="vf-name" value="${v?esc(v.name):''}"></div>
+      <div><label>絵文字</label><input id="vf-emoji" value="${v?esc(v.emoji):'🌱'}"></div>
+    </div>
+    <div class="form-row-2">
+      <div><label>色</label><input type="color" id="vf-color" value="${v?v.color:'#3d7a3d'}" style="height:34px;padding:2px"></div>
+      <div><label>科（分類）</label><input id="vf-family" value="${v?esc(v.family):''}" placeholder="例: アブラナ科"></div>
+    </div>
+    <label>品種（「、」区切りで複数）</label>
+    <input id="vf-varieties" value="${v?esc((v.varieties||[]).join('、')):''}" placeholder="例: 白露、よかった根">
+    <h3 style="margin-top:14px;border-bottom:1px solid var(--border);padding-bottom:4px">栽培管理メモ</h3>
+    <div class="form-row-3">
+      <div><label>発芽適温</label><input id="vf-germTemp" value="${esc(m.germTemp||'')}" placeholder="例: 15-20℃"></div>
+      <div><label>生育適温</label><input id="vf-growTemp" value="${esc(m.growTemp||'')}" placeholder="例: 15-20℃"></div>
+      <div><label>収穫までに要する日数</label><input id="vf-harvestDays" value="${esc(m.harvestDays||'')}" placeholder="例: 定植後60-70日 / 種まき後80-90日"></div>
+    </div>
+    ${MGMT_FIELDS.slice(3).map(([k,l])=>`<label>${l}</label><textarea id="vf-${k}" rows="2">${esc(m[k]||'')}</textarea>`).join('')}
+    <div class="form-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="saveVeg()">💾 保存</button>
+      ${v?`<button class="btn btn-danger" onclick="deleteVeg('${v.id}')">削除</button>`:''}
+      <button class="btn btn-outline" onclick="S.view=S.editVegId?'detail':'timeline';render()">戻る</button>
+    </div>
+  </div></div>`;
+}
+function saveVeg(){
+  const name=document.getElementById('vf-name').value.trim();
+  if(!name){toast('名前を入力してください');return;}
+  const data={
+    name,emoji:document.getElementById('vf-emoji').value.trim()||'🌱',
+    color:document.getElementById('vf-color').value,
+    family:document.getElementById('vf-family').value.trim(),
+    varieties:document.getElementById('vf-varieties').value.split(/[、,]/).map(s=>s.trim()).filter(Boolean),
+    mgmt:{}
+  };
+  MGMT_FIELDS.forEach(([k])=>{data.mgmt[k]=(document.getElementById('vf-'+k)||{value:''}).value.trim();});
+  if(S.editVegId){
+    const v=getVeg(S.editVegId);
+    Object.assign(v,data);
+    S.selVeg=v.id;
+  }else{
+    const v=_normalizeVeg(Object.assign({id:newId('v')},data));
+    D.vegetables.push(v);
+    S.selVeg=v.id;
+  }
+  saveData();
+  S.view='detail';render();toast('保存しました');
+}
+function deleteVeg(id){
+  const v=getVeg(id);
+  const used=D.days.some(dd=>(dd.works||[]).some(w=>w.vid===id))||D.harvests.some(h=>h.vid===id);
+  if(!confirm(`「${v.name}」を削除しますか？${used?'\n※この野菜の作業・収穫記録が一覧に表示されなくなります':''}`))return;
+  D.vegetables=D.vegetables.filter(x=>x.id!==id);
+  if(S.selVeg===id)S.selVeg=null;
+  saveData();S.view='timeline';render();toast('削除しました');
+}
+
+// ---------- 設定 ----------
+function renderSettings(main){
+  const saved=localStorage.getItem('yasai2_fb');
+  let key='';
+  try{key=saved?(JSON.parse(saved).key||''):'';}catch(e){}
+  const loc=getLoc();
+  main.innerHTML=`<div id="settings-wrap">
+    <div class="card">
+      <h2>☁ クラウド同期（Firebase）</h2>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0">
+        前回アプリと同じFirebaseプロジェクト(vegemane)の新しい保存領域(yasai2)を使います。<br>
+        同じ「同期キー」を入れた端末同士でデータ・写真が同期されます。
+      </p>
+      <label>同期キー（好きな英数字。例: nomura-yasai-2026）</label>
+      <input id="fb-key" value="${esc(key)}" placeholder="同期キーを入力">
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="connectCloud()">接続する</button>
+        ${key?'<button class="btn btn-danger" onclick="disconnectCloud()">同期を解除</button>':''}
+      </div>
+      ${FB_ERROR?`<div style="color:#dc2626;font-size:12px;margin-top:8px;white-space:pre-wrap">${esc(FB_ERROR)}</div>`:''}
+    </div>
+    <div class="card">
+      <h2>📍 天気取得の場所</h2>
+      <label>場所の名前</label><input id="loc-name" value="${esc(loc.name)}">
+      <div class="form-row-2">
+        <div><label>緯度</label><input id="loc-lat" type="number" step="0.001" value="${loc.lat}"></div>
+        <div><label>経度</label><input id="loc-lon" type="number" step="0.001" value="${loc.lon}"></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveLoc()">保存</button>
+        <button class="btn btn-outline" onclick="localStorage.removeItem('yasai2_loc');render();toast('初期値(印西市戸神)に戻しました')">初期値に戻す</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>💾 バックアップ</h2>
+      <div class="form-actions" style="border:none;margin-top:4px;padding-top:0">
+        <button class="btn btn-outline" onclick="exportData()">⬇ JSONエクスポート</button>
+        <button class="btn btn-outline" onclick="importData()">⬆ JSONインポート</button>
+      </div>
+    </div>
+  </div>`;
+}
+function connectCloud(){
+  const key=document.getElementById('fb-key').value.trim();
+  if(!key){toast('同期キーを入力してください');return;}
+  localStorage.setItem('yasai2_fb',JSON.stringify({key}));
+  FB_KEY=key;
+  initFirebase(DEFAULT_FB_CONFIG);
+  toast('接続しています…');
+}
+function disconnectCloud(){
+  if(!confirm('クラウド同期を解除しますか？（クラウド上のデータは残ります）'))return;
+  localStorage.removeItem('yasai2_fb');
+  if(FB_DB&&FB_LISTENER){try{FB_DB.ref('yasai2/'+FB_KEY+'/meta').off('value',FB_LISTENER);}catch(e){}}
+  FB_DB=null;FB_KEY=null;FB_LISTENER=null;
+  _saveLocal();
+  updateSyncBadge('none');render();toast('解除しました');
+}
+function saveLoc(){
+  const name=document.getElementById('loc-name').value.trim()||DEFAULT_LOC.name;
+  const lat=parseFloat(document.getElementById('loc-lat').value),lon=parseFloat(document.getElementById('loc-lon').value);
+  if(isNaN(lat)||isNaN(lon)){toast('緯度・経度を数値で入力してください');return;}
+  localStorage.setItem('yasai2_loc',JSON.stringify({name,lat,lon}));
+  toast('保存しました');
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(D,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='yasai2_data_'+_localDateStr(new Date())+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importData(){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.json';
+  inp.onchange=()=>{
+    const f=inp.files[0];if(!f)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const d=JSON.parse(ev.target.result);
+        if(!d.vegetables)throw new Error('形式が違います');
+        if(!confirm('現在のデータを読み込んだデータで置き換えますか？'))return;
+        D=d;
+        D.vegetables.forEach(_normalizeVeg);
+        (D.days||[]).forEach(_normalizeDay);
+        _syncedPhotoIds=new Set();
+        saveData();render();toast('インポートしました');
+      }catch(e){toast('読み込み失敗: '+e.message);}
+    };
+    reader.readAsText(f);
+  };
+  inp.click();
+}
+
+// ===================== INIT =====================
+document.querySelectorAll('.nav-tab').forEach(t=>t.addEventListener('click',()=>setView(t.dataset.v)));
+document.getElementById('toggle-sb').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('collapsed'));
+loadData();
+loadCloudConfig();
+if(window.innerWidth<700)document.getElementById('sidebar').classList.add('collapsed');
+render();
+</script>
+</body>
+</html>

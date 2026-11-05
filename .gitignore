@@ -1,0 +1,6 @@
+# 参考資料（公開リポジトリに含めない）
+種袋情報/
+*.xlsx
+*.docx
+*.json
+!package.json
