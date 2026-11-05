@@ -323,7 +323,17 @@ const VEG_SEED=[
  tax:{family:'ヒガンバナ科',genus:'ネギ属'},
  traits:{origin:'中央アジア',coldHeat:'耐寒性強い・高温多湿に弱い',water:'定植後と春先の生育期に。収穫前は控える',fertilizer:'止め肥は3月まで(遅れると貯蔵性が落ちる)',other:'大苗定植はとう立ちの原因。葉が8割倒伏したら収穫適期'},
  mgmt:{germTemp:'15-20℃',growTemp:'12-20℃',harvestDays:'定植後 約180-200日(11月定植→翌5-6月)',
- transplant:'苗の白い部分が隠れる程度の浅植え(株間12-15cm)'}}
+ transplant:'苗の白い部分が隠れる程度の浅植え(株間12-15cm)'}},
+{id:'v19',name:'茎ブロッコリー',emoji:'🥦',color:'#047857',varieties:['スティックセニョール'],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'ブロッコリー(地中海沿岸)×カイラン(中国)の交配・日本で育成',coldHeat:'耐寒性あり・高温に弱い(花蕾の形成は冷涼期)',water:'乾燥に弱い。活着後は普通でよい',fertilizer:'長期収穫のため2-3週間おきに追肥',other:'頂花蕾が500円玉大のうちに摘心すると側花蕾が多数伸びる。防虫ネット推奨'},
+ mgmt:{germTemp:'20-25℃',growTemp:'15-20℃',harvestDays:'定植後 約50-70日(頂花蕾摘心後、側花蕾を順次収穫)',
+ harvest:'側花蕾は茎長15-20cmで切り取る。収穫が遅れると花が咲くので早めに',note:'品種:スティックセニョール。側枝を順次収穫すれば長期間楽しめる'}},
+{id:'v20',name:'芽キャベツ',emoji:'🟢',color:'#365314',varieties:[],
+ tax:{family:'アブラナ科',genus:'アブラナ属'},
+ traits:{origin:'ベルギー(ブリュッセル)',coldHeat:'耐寒性強い・暑さに弱い',water:'乾燥に弱い。こまめに',fertilizer:'肥料食い。2-3週間おきに追肥',other:'葉の付け根にできる芽球を下から順に収穫。下葉かきで日当たりと風通しを確保すると芽球が太る'},
+ mgmt:{germTemp:'15-30℃',growTemp:'15-20℃',harvestDays:'定植後 約90-120日(直径2-3cmから下の芽球を順次収穫)',
+ leaf:'芽球が付き始めたら下葉を順次かき取り、日当たりを確保',note:'芽球がゆるく巻く場合は肥料不足か高温が原因のことが多い'}}
 ];
 // 栽培管理メモの項目（前回アプリの項目＋新規3項目）
 const MGMT_FIELDS=[['germTemp','発芽適温'],['growTemp','生育適温'],['harvestDays','収穫までに要する日数'],
@@ -470,8 +480,18 @@ function _normalizeDay(d){
   d.works.forEach(w=>{if(!Array.isArray(w.photos))w.photos=w.photo?[w.photo]:[];});
   return d;
 }
+// シード作物の追加マイグレーション（アプリ更新で作物が増えた時、既存データにも1回だけ追加する）
+const SEED_VER=2; // v2: 茎ブロッコリー・芽キャベツ追加
+function _migrateSeedVegs(){
+  if((D.seedVer||1)>=SEED_VER)return;
+  VEG_SEED.forEach(s=>{
+    if(!D.vegetables.find(v=>v.id===s.id))D.vegetables.push(_normalizeVeg(JSON.parse(JSON.stringify(s))));
+  });
+  D.seedVer=SEED_VER;
+}
 function _dataWithoutPhotos(){
   return {
+    seedVer:D.seedVer||1,
     vegetables:D.vegetables,
     days:D.days.map(dd=>Object.assign({},dd,{works:(dd.works||[]).map(w=>{const c=Object.assign({},w);delete c.photos;delete c.photo;return c;})})),
     plans:D.plans,
@@ -498,10 +518,11 @@ function loadData(){
       if(!Array.isArray(D.harvests))D.harvests=[];
       D.vegetables.forEach(_normalizeVeg);
       D.days.forEach(_normalizeDay);
+      _migrateSeedVegs();
       return;
     }catch(e){}
   }
-  D={vegetables:VEG_SEED.map(v=>_normalizeVeg(JSON.parse(JSON.stringify(v)))),days:[],plans:[],harvests:[]};
+  D={seedVer:SEED_VER,vegetables:VEG_SEED.map(v=>_normalizeVeg(JSON.parse(JSON.stringify(v)))),days:[],plans:[],harvests:[]};
 }
 
 // ===================== CLOUD SYNC (Firebase・前回方式を継承) =====================
@@ -587,6 +608,7 @@ function initFirebase(config){
               ||(D.plans||[]).some(x=>!(remote.plans||[]).find(r=>r.id===x.id))
               ||(D.harvests||[]).some(x=>!(remote.harvests||[]).find(r=>r.id===x.id));
             D={
+              seedVer:remote.seedVer||1,
               vegetables:remote.vegetables||[],
               days:merge(remote.days,localDays),
               plans:merge(remote.plans,D.plans),
@@ -594,6 +616,8 @@ function initFirebase(config){
             };
             D.vegetables.forEach(_normalizeVeg);
             D.days.forEach(_normalizeDay);
+            const migrated=(D.seedVer||1)<SEED_VER;
+            _migrateSeedVegs();
             _mergePhotos(photosObj);
             // Firebase未到達のローカル写真を復元
             D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
@@ -601,7 +625,7 @@ function initFirebase(config){
             }));
             Object.keys(photosObj).forEach(id=>_syncedPhotoIds.add(id));
             _saveLocal();
-            if(hadLocalOnly||_saveQueuedForConnect){_saveQueuedForConnect=false;setTimeout(()=>saveToCloud(),500);}
+            if(hadLocalOnly||migrated||_saveQueuedForConnect){_saveQueuedForConnect=false;setTimeout(()=>saveToCloud(),500);}
           }else{
             _saveQueuedForConnect=false;
             saveToCloud();
@@ -636,6 +660,7 @@ function _startListener(){
     if(meta.rev&&meta.rev===_myRev)return; // 自分の書き込みは無視
     const photos=_collectLocalPhotos();
     D={
+      seedVer:meta.seedVer||1,
       vegetables:meta.vegetables||[],
       days:meta.days||[],
       plans:meta.plans||[],
@@ -643,6 +668,7 @@ function _startListener(){
     };
     D.vegetables.forEach(_normalizeVeg);
     D.days.forEach(_normalizeDay);
+    _migrateSeedVegs();
     _mergePhotos(photos);
     _saveLocal();
     if(S.view==='entry'){renderSidebar();}else{render();}
