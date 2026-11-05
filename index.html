@@ -228,8 +228,8 @@ h3{font-size:13px;color:var(--primary-d)}
 <script>
 'use strict';
 // ===================== 選択肢 =====================
-const OPT_A=['土づくり','畝立','草刈','清掃'];
-const OPT_C=['種まき','間引','芽掻','仕立','苗定植','施水','施肥','葉掻','剪定','摘果・花','人工授粉','散布','害虫確認・駆除','成長観測','収穫','処分','自由入力'];
+const OPT_A=['土づくり','寒起','太陽熱消毒','レイアウト','草刈','清掃'];
+const OPT_C=['畝立','マルチ','種まき','間引','芽掻','仕立','苗定植','施水','施肥','葉掻','剪定','摘果・花','人工授粉','散布','防虫ネット','害虫確認・駆除','雑草駆除','成長観測','収穫','処分','自由入力'];
 const WEATHER_OPTS=['快晴','晴','晴時々曇','曇','小雨','雨','大雨','にわか雨','霧','雪','雷雨'];
 
 // ===================== 野菜シード（選択肢B/D + 種袋・栽培情報） =====================
@@ -437,6 +437,21 @@ function workActs(w){
 }
 function workActLabel(w){return workActs(w).join('・');}
 function workVids(w){return Array.isArray(w.vids)&&w.vids.length?w.vids:(w.vid?[w.vid]:[]);}
+function planActs(p){return (p.acts||[]).map(a=>a==='自由入力'?(p.custom||'自由入力'):a);}
+// 予定作業の正規化: 旧形式(単一vid/act)→作物への作業、typeフィールド付与
+function _normalizePlan(p){
+  if(!p.type)p.type=(Array.isArray(p.fieldActs)&&p.fieldActs.length)||p.fieldCustom?'field':'work';
+  if(p.type==='work'){
+    if(!Array.isArray(p.vids))p.vids=p.vid?[p.vid]:[];
+    if(!Array.isArray(p.acts))p.acts=p.act?[p.act]:[];
+    delete p.vid;delete p.act;
+  }else{
+    if(!Array.isArray(p.fieldActs))p.fieldActs=[];
+    if(p.fieldCustom==null)p.fieldCustom='';
+  }
+  if(p.custom==null)p.custom='';
+  return p;
+}
 function actColor(act){
   if(!act)return'#6b7280';
   if(/収穫/.test(act))return'#dc2626';
@@ -448,6 +463,9 @@ function actColor(act){
   if(/芽掻|間引|葉掻|剪定|摘果/.test(act))return'#9333ea';
   if(/散布/.test(act))return'#7c3aed';
   if(/害虫/.test(act))return'#be123c';
+  if(/畝|マルチ/.test(act))return'#92400e';
+  if(/防虫ネット/.test(act))return'#0e7490';
+  if(/雑草/.test(act))return'#65a30d';
   if(/人工授粉/.test(act))return'#ec4899';
   if(/成長観測/.test(act))return'#0891b2';
   if(/処分/.test(act))return'#78350f';
@@ -537,7 +555,7 @@ function loadData(){
       if(!Array.isArray(D.plans))D.plans=[];
       if(!Array.isArray(D.harvests))D.harvests=[];
       D.vegetables.forEach(_normalizeVeg);
-      D.days.forEach(_normalizeDay);
+      D.days.forEach(_normalizeDay);D.plans.forEach(_normalizePlan);
       _migrateSeedVegs();
       return;
     }catch(e){}
@@ -641,7 +659,7 @@ function initFirebase(config){
               harvests:merge(remote.harvests,D.harvests)
             };
             D.vegetables.forEach(_normalizeVeg);
-            D.days.forEach(_normalizeDay);
+            D.days.forEach(_normalizeDay);D.plans.forEach(_normalizePlan);
             const migrated=(D.seedVer||1)<SEED_VER;
             _migrateSeedVegs();
             _mergePhotos(photosObj);
@@ -696,7 +714,7 @@ function _startListener(){
       harvests:meta.harvests||[]
     };
     D.vegetables.forEach(_normalizeVeg);
-    D.days.forEach(_normalizeDay);
+    D.days.forEach(_normalizeDay);D.plans.forEach(_normalizePlan);
     _migrateSeedVegs();
     _mergePhotos(photos);
     _saveLocal();
@@ -785,7 +803,11 @@ function renderTimeline(main){
     if((dd.fieldActs&&dd.fieldActs.length)||dd.fieldCustom||(dd.fieldPhotos&&dd.fieldPhotos.length))(fieldBy[dd.date]=fieldBy[dd.date]||[]).push(dd);
     (dd.works||[]).forEach(w=>workVids(w).forEach(vid=>{(worksBy[dd.date+'_'+vid]=worksBy[dd.date+'_'+vid]||[]).push(w);}));
   });
-  const plansBy={};D.plans.forEach(p=>{(plansBy[p.date+'_'+p.vid]=plansBy[p.date+'_'+p.vid]||[]).push(p);});
+  const plansBy={},planFieldBy={};
+  D.plans.forEach(p=>{
+    if(p.type==='field'){(planFieldBy[p.date]=planFieldBy[p.date]||[]).push(p);}
+    else (p.vids||[]).forEach(vid=>{(plansBy[p.date+'_'+vid]=plansBy[p.date+'_'+vid]||[]).push(p);});
+  });
   const harvBy={};D.harvests.forEach(h=>{(harvBy[h.date+'_'+h.vid]=harvBy[h.date+'_'+h.vid]||[]).push(h);});
 
   let html=`<div id="timeline-wrap">
@@ -807,8 +829,8 @@ function renderTimeline(main){
     </tr></thead><tbody>`;
   // 畑全体行
   html+=`<tr><td class="tl-veg-col">🏞 畑全体</td>${dates.map(ds=>{
-    const has=fieldBy[ds];
-    return `<td class="tl-cell ${ds===today?'today':''} ${has?'has-data':''}" onclick="openDayPopup('${ds}',null)">${has?'<span class="tl-dot" style="background:#78350f"></span>':''}</td>`;
+    const has=fieldBy[ds],hasPlan=planFieldBy[ds];
+    return `<td class="tl-cell ${ds===today?'today':''} ${has||hasPlan?'has-data':''}" onclick="openDayPopup('${ds}',null)">${has?'<span class="tl-dot" style="background:#78350f"></span>':''}${hasPlan?'<span class="tl-dot plan"></span>':''}</td>`;
   }).join('')}</tr>`;
   // 野菜行
   D.vegetables.forEach(v=>{
@@ -840,7 +862,7 @@ function renderTimeline(main){
 // ---------- 日別ポップアップ ----------
 function openDayPopup(ds,vid){
   const days=D.days.filter(d=>d.date===ds);
-  const plans=D.plans.filter(p=>p.date===ds&&(!vid||p.vid===vid));
+  const plans=D.plans.filter(p=>p.date===ds&&(!vid||(p.type!=='field'&&(p.vids||[]).includes(vid))));
   const harvests=D.harvests.filter(h=>h.date===ds&&(!vid||h.vid===vid));
   let body='';
   days.forEach(dd=>{
@@ -876,8 +898,14 @@ function openDayPopup(ds,vid){
   }
   if(plans.length){
     body+=`<div class="popup-entry"><b>📋 予定作業</b>${plans.map(p=>{
-      const v=getVeg(p.vid);
-      return `<div style="margin-top:3px"><span class="badge badge-plan">予定</span> ${v?esc(v.name):'?'} ${esc(p.act==='自由入力'?(p.custom||''):p.act)}
+      let label;
+      if(p.type==='field'){
+        label='🏞 畑全体 '+esc([...(p.fieldActs||[]),p.fieldCustom].filter(Boolean).join('・'));
+      }else{
+        const vegs=(p.vids||[]).map(id=>{const v=getVeg(id);return v?v.emoji+esc(v.name):'?';}).join('、');
+        label=`${vegs} ${esc(planActs(p).join('・'))}`;
+      }
+      return `<div style="margin-top:3px"><span class="badge badge-plan">予定</span> ${label}
         <button class="btn-sm" style="background:#dc2626;margin-left:6px" onclick="deletePlan('${p.id}')">削除</button></div>`;
     }).join('')}</div>`;
   }
@@ -981,7 +1009,7 @@ function renderSchedTab(v){
   D.days.forEach(dd=>(dd.works||[]).forEach(w=>{
     if(workVids(w).includes(v.id))items.push({type:'work',date:dd.date,day:dd,w});
   }));
-  D.plans.forEach(p=>{if(p.vid===v.id)items.push({type:'plan',date:p.date,p});});
+  D.plans.forEach(p=>{if(p.type!=='field'&&(p.vids||[]).includes(v.id))items.push({type:'plan',date:p.date,p});});
   D.harvests.forEach(h=>{if(h.vid===v.id)items.push({type:'harvest',date:h.date,h});});
   items.sort((a,b)=>b.date.localeCompare(a.date));
   if(!items.length)return `<div class="section-card" style="color:var(--muted)">記録はまだありません</div>`;
@@ -1003,7 +1031,7 @@ function renderSchedTab(v){
       const p=it.p;
       return `<div class="sched-item" style="background:#f8fafc">
         <div class="left"><div class="date">${fmtMD(it.date)}</div></div>
-        <div class="right"><div class="act" style="color:#1d4ed8">${esc(p.act==='自由入力'?(p.custom||''):p.act)} <span class="badge badge-plan">予定</span></div></div>
+        <div class="right"><div class="act" style="color:#1d4ed8">${esc(planActs(p).join('・'))} <span class="badge badge-plan">予定</span></div></div>
       </div>`;
     }
     const h=it.h;
@@ -1044,7 +1072,7 @@ function newEntryFor(ds){
   E={id:null,date:ds,timeFrom:'',timeTo:'',weather:'',wind:'',temp:'',
      fieldActs:[],fieldCustom:'',fieldPhotos:[],
      works:[_emptyWorkRow()],
-     plans:[],harvests:[]};
+     planFields:[],planWorks:[],harvests:[]};
 }
 function editEntry(dayId){
   const dd=D.days.find(x=>x.id===dayId);
@@ -1054,7 +1082,8 @@ function editEntry(dayId){
      weather:dd.weather||'',wind:dd.wind||'',temp:dd.temp||'',
      fieldActs:[...(dd.fieldActs||[])],fieldCustom:dd.fieldCustom||'',fieldPhotos:[...(dd.fieldPhotos||[])],
      works:(dd.works||[]).map(w=>({id:w.id,vids:[...workVids(w)],acts:[...(w.acts||[])],custom:w.custom||'',memo:w.memo||'',photos:[...(w.photos||[])]})),
-     plans:D.plans.filter(p=>p.src===dd.id).map(p=>({date:p.date,vid:p.vid,act:p.act,custom:p.custom||''})),
+     planFields:D.plans.filter(p=>p.src===dd.id&&p.type==='field').map(p=>({date:p.date,fieldActs:[...(p.fieldActs||[])],fieldCustom:p.fieldCustom||''})),
+     planWorks:D.plans.filter(p=>p.src===dd.id&&p.type!=='field').map(p=>({date:p.date,vids:[...(p.vids||[])],acts:[...(p.acts||[])],custom:p.custom||''})),
      harvests:D.harvests.filter(h=>h.src===dd.id).map(h=>({vid:h.vid,variety:h.variety||'',count:h.count}))};
   if(!E.works.length)E.works.push(_emptyWorkRow());
   setView('entry');
@@ -1076,9 +1105,6 @@ function deletePlan(pid){
 }
 function vegOptions(sel){
   return '<option value="">作物を選択</option>'+D.vegetables.map(v=>`<option value="${v.id}" ${sel===v.id?'selected':''}>${v.emoji}${esc(v.name)}</option>`).join('');
-}
-function actOptions(sel){
-  return '<option value="">作業を選択</option>'+OPT_C.map(a=>`<option ${sel===a?'selected':''}>${a}</option>`).join('');
 }
 function varietyOptions(vid,sel){
   const v=getVeg(vid);
@@ -1131,8 +1157,12 @@ function renderEntry(main){
 
     <div class="entry-section">
       <div class="sec-title">３．予定作業</div>
-      <div id="plan-rows">${E.plans.map((p,i)=>planRowHtml(p,i)).join('')||'<div style="font-size:11px;color:var(--muted)">予定はありません</div>'}</div>
-      <button class="photo-add-btn" onclick="addPlanRow()">＋ 予定作業を追加</button>
+      <label>予定作業１：畑全体</label>
+      <div id="plan-field-rows">${E.planFields.map((p,i)=>planFieldRowHtml(p,i)).join('')||'<div style="font-size:11px;color:var(--muted)">予定はありません</div>'}</div>
+      <button class="photo-add-btn" onclick="addPlanFieldRow()">＋ 畑全体の予定を追加</button>
+      <label style="margin-top:12px">予定作業２：作物への作業</label>
+      <div id="plan-work-rows">${E.planWorks.map((p,i)=>planWorkRowHtml(p,i)).join('')||'<div style="font-size:11px;color:var(--muted)">予定はありません</div>'}</div>
+      <button class="photo-add-btn" onclick="addPlanWorkRow()">＋ 作物への予定を追加</button>
     </div>
 
     <div class="entry-section">
@@ -1162,14 +1192,14 @@ function renderEntry(main){
 function workRowHtml(w,i){
   return `<div class="work-row">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <label style="margin-top:0">【${i+1}】作物名（複数選択可）</label>
-      <button class="row-del" title="この行を削除" onclick="removeWorkRow(${i})">🗑</button>
+      <label style="margin-top:0">【１】作物名（複数選択可）</label>
+      <span style="font-size:11px;color:var(--muted)">${i+1}行目 <button class="row-del" title="この行を削除" onclick="removeWorkRow(${i})">🗑</button></span>
     </div>
     <div class="act-check-grid chip-mini">
       ${D.vegetables.map(v=>`<label class="act-check-label ${w.vids.includes(v.id)?'checked':''}">
         <input type="checkbox" ${w.vids.includes(v.id)?'checked':''} onchange="toggleWorkVid(${i},'${v.id}',this.checked)">${v.emoji}${esc(v.name)}</label>`).join('')}
     </div>
-    <label>作業（複数選択可）</label>
+    <label>【２】　作業（複数選択可）</label>
     <div class="act-check-grid chip-mini">
       ${OPT_C.map(a=>`<label class="act-check-label ${w.acts.includes(a)?'checked':''}">
         <input type="checkbox" ${w.acts.includes(a)?'checked':''} onchange="toggleWorkAct(${i},'${a}',this.checked)">${a}</label>`).join('')}
@@ -1210,16 +1240,58 @@ function pickFieldPhoto(){
   inp.click();
 }
 function removeFieldPhoto(pi){E.fieldPhotos.splice(pi,1);renderEntryKeep();}
-function planRowHtml(p,i){
-  return `<div class="work-row"><div class="work-row-head">
-    <div class="fi"><label>日付</label><input type="date" value="${p.date||''}" onchange="E.plans[${i}].date=this.value"></div>
-    <div class="fi"><label>作物名</label><select onchange="E.plans[${i}].vid=this.value">${vegOptions(p.vid)}</select></div>
-    <div class="fi"><label>作業</label><select onchange="E.plans[${i}].act=this.value;renderEntryKeep()">${actOptions(p.act)}</select></div>
-    <button class="row-del" onclick="E.plans.splice(${i},1);renderEntryKeep()">🗑</button>
-  </div>
-  ${p.act==='自由入力'?`<input style="margin-top:6px" placeholder="作業内容を入力" value="${esc(p.custom)}" onchange="E.plans[${i}].custom=this.value">`:''}
+function planFieldRowHtml(p,i){
+  return `<div class="work-row">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
+      <div style="flex:0 0 160px"><label style="margin-top:0">日付</label><input type="date" value="${p.date||''}" onchange="E.planFields[${i}].date=this.value"></div>
+      <button class="row-del" title="この予定を削除" onclick="E.planFields.splice(${i},1);renderEntryKeep()">🗑</button>
+    </div>
+    <div class="act-check-grid chip-mini">
+      ${OPT_A.map(a=>`<label class="act-check-label ${p.fieldActs.includes(a)?'checked':''}">
+        <input type="checkbox" ${p.fieldActs.includes(a)?'checked':''} onchange="togglePlanFieldAct(${i},'${a}',this.checked)">${a}</label>`).join('')}
+    </div>
+    <input style="margin-top:6px" placeholder="自由入力（その他の畑全体作業）" value="${esc(p.fieldCustom)}" onchange="E.planFields[${i}].fieldCustom=this.value">
   </div>`;
 }
+function planWorkRowHtml(p,i){
+  return `<div class="work-row">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
+      <div style="flex:0 0 160px"><label style="margin-top:0">日付</label><input type="date" value="${p.date||''}" onchange="E.planWorks[${i}].date=this.value"></div>
+      <button class="row-del" title="この予定を削除" onclick="E.planWorks.splice(${i},1);renderEntryKeep()">🗑</button>
+    </div>
+    <label>【１】作物名（複数選択可）</label>
+    <div class="act-check-grid chip-mini">
+      ${D.vegetables.map(v=>`<label class="act-check-label ${p.vids.includes(v.id)?'checked':''}">
+        <input type="checkbox" ${p.vids.includes(v.id)?'checked':''} onchange="togglePlanWorkVid(${i},'${v.id}',this.checked)">${v.emoji}${esc(v.name)}</label>`).join('')}
+    </div>
+    <label>【２】　作業（複数選択可）</label>
+    <div class="act-check-grid chip-mini">
+      ${OPT_C.map(a=>`<label class="act-check-label ${p.acts.includes(a)?'checked':''}">
+        <input type="checkbox" ${p.acts.includes(a)?'checked':''} onchange="togglePlanWorkAct(${i},'${a}',this.checked)">${a}</label>`).join('')}
+    </div>
+    ${p.acts.includes('自由入力')?`<input style="margin-top:6px" placeholder="作業内容を入力" value="${esc(p.custom)}" onchange="E.planWorks[${i}].custom=this.value">`:''}
+  </div>`;
+}
+function togglePlanFieldAct(i,a,on){
+  const arr=E.planFields[i].fieldActs;
+  if(on){if(!arr.includes(a))arr.push(a);}
+  else E.planFields[i].fieldActs=arr.filter(x=>x!==a);
+  renderEntryKeep();
+}
+function togglePlanWorkVid(i,vid,on){
+  const arr=E.planWorks[i].vids;
+  if(on){if(!arr.includes(vid))arr.push(vid);}
+  else E.planWorks[i].vids=arr.filter(x=>x!==vid);
+  renderEntryKeep();
+}
+function togglePlanWorkAct(i,a,on){
+  const arr=E.planWorks[i].acts;
+  if(on){if(!arr.includes(a))arr.push(a);}
+  else E.planWorks[i].acts=arr.filter(x=>x!==a);
+  renderEntryKeep();
+}
+function addPlanFieldRow(){E.planFields.push({date:E.date,fieldActs:[],fieldCustom:''});renderEntryKeep();}
+function addPlanWorkRow(){E.planWorks.push({date:E.date,vids:[],acts:[],custom:''});renderEntryKeep();}
 function harvestRowHtml(h,i){
   const v=getVeg(h.vid);
   const inList=v&&(v.varieties||[]).includes(h.variety);
@@ -1272,7 +1344,6 @@ function pickWorkPhoto(i){
   };
   inp.click();
 }
-function addPlanRow(){E.plans.push({date:E.date,vid:'',act:'',custom:''});renderEntryKeep();}
 function addHarvestRow(){E.harvests.push({vid:'',variety:'',varietyFree:'',count:''});renderEntryKeep();}
 async function fetchWeatherBtn(){
   const btn=document.getElementById('wx-fetch');
@@ -1292,11 +1363,12 @@ async function fetchWeatherBtn(){
 function saveEntry(){
   if(!E.date){toast('日付を入力してください');return;}
   const works=E.works.filter(w=>w.vids.length&&(w.acts.length||(w.custom||'').trim()||(w.photos||[]).length));
-  const plans=E.plans.filter(p=>p.date&&p.vid&&p.act);
+  const planFields=E.planFields.filter(p=>p.date&&(p.fieldActs.length||(p.fieldCustom||'').trim()));
+  const planWorks=E.planWorks.filter(p=>p.date&&p.vids.length&&(p.acts.length||(p.custom||'').trim()));
   const harvests=E.harvests.filter(h=>h.vid&&(+h.count>0));
   const hasField=E.fieldActs.length||E.fieldCustom.trim()||(E.fieldPhotos||[]).length;
   const hasEnv=E.weather||E.wind||E.temp||E.timeFrom||E.timeTo;
-  if(!works.length&&!plans.length&&!harvests.length&&!hasField&&!hasEnv){toast('入力内容がありません');return;}
+  if(!works.length&&!planFields.length&&!planWorks.length&&!harvests.length&&!hasField&&!hasEnv){toast('入力内容がありません');return;}
   let dayId=E.id;
   const dayObj={
     id:dayId||newId('d'),date:E.date,timeFrom:E.timeFrom,timeTo:E.timeTo,
@@ -1326,7 +1398,8 @@ function saveEntry(){
   dayObj.works.forEach(w=>{_syncedPhotoIds.delete(w.id);if(!(w.photos||[]).length)_syncedPhotoIds.add(w.id);});
   _syncedPhotoIds.delete(dayObj.id);
   if(!(dayObj.fieldPhotos||[]).length)_syncedPhotoIds.add(dayObj.id);
-  plans.forEach(p=>D.plans.push({id:newId('p'),src:dayId,date:p.date,vid:p.vid,act:p.act,custom:(p.custom||'').trim()}));
+  planFields.forEach(p=>D.plans.push({id:newId('p'),src:dayId,type:'field',date:p.date,fieldActs:[...p.fieldActs],fieldCustom:(p.fieldCustom||'').trim(),custom:''}));
+  planWorks.forEach(p=>D.plans.push({id:newId('p'),src:dayId,type:'work',date:p.date,vids:[...p.vids],acts:[...p.acts],custom:(p.custom||'').trim()}));
   harvests.forEach(h=>{
     const variety=h.variety==='__free__'?(h.varietyFree||'').trim():h.variety;
     D.harvests.push({id:newId('h'),src:dayId,date:E.date,vid:h.vid,variety,count:+h.count});
@@ -1495,6 +1568,7 @@ function importData(){
         D=d;
         D.vegetables.forEach(_normalizeVeg);
         (D.days||[]).forEach(_normalizeDay);
+        (D.plans||[]).forEach(_normalizePlan);
         _syncedPhotoIds=new Set();
         saveData();render();toast('インポートしました');
       }catch(e){toast('読み込み失敗: '+e.message);}
