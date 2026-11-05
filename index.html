@@ -449,7 +449,11 @@ function loadData(){
   D={vegetables:VEG_SEED.map(v=>_normalizeVeg(JSON.parse(JSON.stringify(v)))),days:[],plans:[],harvests:[]};
 }
 
-// ===================== CLOUD SYNC (Firebase・前回方式を継承 / 保存先は yasai2/) =====================
+// ===================== CLOUD SYNC (Firebase・前回方式を継承) =====================
+// 保存先: yasai/y2_{同期キー}
+// RTDBルールは yasai/$key のみ読み書き許可のため、その配下を使う。
+// キーに y2_ を前置して旧アプリ(yasai/{キー})のデータと衝突しないよう分離する。
+function fbPath(){return 'yasai/y2_'+FB_KEY;}
 let FB_DB=null,FB_KEY=null,FB_LISTENER=null,FB_ERROR=null,FB_TIMEOUT=null;
 let _syncedPhotoIds=new Set(),_pendingPhotoDeletes=new Set(),_saveQueuedForConnect=false,_myRev=null;
 const DEFAULT_FB_CONFIG={
@@ -513,7 +517,7 @@ function initFirebase(config){
         window.firebase.initializeApp(config);
         FB_DB=window.firebase.database();
         clearTimeout(FB_TIMEOUT);
-        FB_DB.ref('yasai2/'+FB_KEY).once('value').then(snap=>{
+        FB_DB.ref(fbPath()).once('value').then(snap=>{
           const d=snap.val();
           if(d&&d.meta&&d.meta.vegetables){
             const remote=d.meta;
@@ -570,8 +574,8 @@ function initFirebase(config){
 }
 function _startListener(){
   if(!FB_DB||!FB_KEY)return;
-  if(FB_LISTENER)FB_DB.ref('yasai2/'+FB_KEY+'/meta').off('value',FB_LISTENER);
-  FB_LISTENER=FB_DB.ref('yasai2/'+FB_KEY+'/meta').on('value',snap=>{
+  if(FB_LISTENER)FB_DB.ref(fbPath()+'/meta').off('value',FB_LISTENER);
+  FB_LISTENER=FB_DB.ref(fbPath()+'/meta').on('value',snap=>{
     const meta=snap.val();
     if(!meta||!meta.vegetables)return;
     if(meta.rev&&meta.rev===_myRev)return; // 自分の書き込みは無視
@@ -596,7 +600,7 @@ function saveToCloud(){
   }
   _myRev='r'+Date.now()+Math.random().toString(36).slice(2,7);
   const meta=Object.assign({rev:_myRev,updatedAt:new Date().toISOString()},_dataWithoutPhotos());
-  FB_DB.ref('yasai2/'+FB_KEY+'/meta').set(JSON.parse(JSON.stringify(meta)))
+  FB_DB.ref(fbPath()+'/meta').set(JSON.parse(JSON.stringify(meta)))
     .then(()=>{updateSyncBadge('ok');_syncPhotos();})
     .catch(err=>{FB_ERROR='保存エラー：'+(err.message||String(err));updateSyncBadge('error');});
 }
@@ -610,12 +614,12 @@ function _syncPhotos(){
     if(dels.length){
       const id=dels.shift();
       _pendingPhotoDeletes.delete(id);
-      FB_DB.ref('yasai2/'+FB_KEY+'/photos/'+id).remove().then(next).catch(next);
+      FB_DB.ref(fbPath()+'/photos/'+id).remove().then(next).catch(next);
       return;
     }
     if(!pending.length)return;
     const id=pending.shift();
-    FB_DB.ref('yasai2/'+FB_KEY+'/photos/'+id).set(all[id])
+    FB_DB.ref(fbPath()+'/photos/'+id).set(all[id])
       .then(()=>{_syncedPhotoIds.add(id);next();})
       .catch(err=>{console.warn('photo sync failed',id,err);next();});
   };
@@ -1273,7 +1277,7 @@ function connectCloud(){
 function disconnectCloud(){
   if(!confirm('クラウド同期を解除しますか？（クラウド上のデータは残ります）'))return;
   localStorage.removeItem('yasai2_fb');
-  if(FB_DB&&FB_LISTENER){try{FB_DB.ref('yasai2/'+FB_KEY+'/meta').off('value',FB_LISTENER);}catch(e){}}
+  if(FB_DB&&FB_LISTENER){try{FB_DB.ref(fbPath()+'/meta').off('value',FB_LISTENER);}catch(e){}}
   FB_DB=null;FB_KEY=null;FB_LISTENER=null;
   _saveLocal();
   updateSyncBadge('none');render();toast('解除しました');
