@@ -210,6 +210,7 @@ h3{font-size:13px;color:var(--primary-d)}
     <button class="nav-tab active" data-v="timeline">📅 一覧</button>
     <button class="nav-tab" data-v="detail">🥬 野菜詳細</button>
     <button class="nav-tab" data-v="entry">✏️ 記録入力</button>
+    <button class="nav-tab" data-v="layout">🗺 畑レイアウト</button>
     <button class="nav-tab" data-v="settings">⚙️ 設定</button>
   </nav>
   <span id="sync-badge">未同期</span>
@@ -762,6 +763,7 @@ function render(){
   if(S.view==='timeline')renderTimeline(main);
   else if(S.view==='detail')renderDetail(main);
   else if(S.view==='entry')renderEntry(main);
+  else if(S.view==='layout')renderLayout(main);
   else if(S.view==='veg-form')renderVegForm(main);
   else if(S.view==='settings')renderSettings(main);
 }
@@ -1410,6 +1412,24 @@ function saveEntry(){
   S.view='timeline';
   render();
   toast('保存しました');
+}
+
+// ---------- 畑レイアウト ----------
+const LAYOUT_IMG='畑レイアウト.png';
+function renderLayout(main){
+  main.innerHTML=`<div style="padding:10px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <h2>🗺 畑レイアウト</h2>
+      <span style="flex:1"></span>
+      <button class="btn btn-outline" onclick="window.open(encodeURI(LAYOUT_IMG),'_blank')">⛶ 原寸で開く</button>
+    </div>
+    <div class="card" style="margin:0;padding:8px;text-align:center">
+      <img src="${encodeURI(LAYOUT_IMG)}" alt="畑レイアウト" style="max-width:100%;height:auto;border-radius:6px;cursor:zoom-in"
+        onclick="window.open(encodeURI(LAYOUT_IMG),'_blank')"
+        onerror="this.outerHTML='&lt;div style=&quot;color:var(--muted);padding:30px&quot;&gt;畑レイアウト.png が見つかりません。アプリと同じフォルダ(リポジトリ)に置いてください。&lt;/div&gt;'">
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">画像をタップすると原寸表示します。画像の更新は 畑レイアウト.png を差し替えてpushしてください。</div>
+    </div>
+  </div>`;
 }
 
 // ---------- 野菜 追加/編集フォーム ----------
